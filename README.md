@@ -80,6 +80,7 @@ The wizard will generate a complete SFC configuration template with proper struc
 6. **`explain_sfc_concept`**: Detailed explanations of SFC components
 7. **`generate_test_plan`**: Comprehensive testing strategies
 8. **`save_config_to_file`**: Save SFC configurations to JSON files
+9. **`read_config_from_file`**: Load existing SFC configurations from JSON files
 
 ---
 

@@ -7,6 +7,7 @@ Specialized assistant for debugging, creating, and testing SFC configurations.
 """
 
 import sys
+import os
 import json
 from typing import List, Dict, Any
 from dotenv import load_dotenv
@@ -243,6 +244,15 @@ class SFCWizardAgent:
             return self._generate_test_plan(config_json)
             
         @tool
+        def read_config_from_file(filename: str) -> str:
+            """Read an SFC configuration from a JSON file.
+            
+            Args:
+                filename: Name of the file to read the configuration from
+            """
+            return self._read_config_from_file(filename)
+            
+        @tool
         def save_config_to_file(config_json: str, filename: str) -> str:
             """Save an SFC configuration to a JSON file.
 
@@ -265,6 +275,7 @@ class SFCWizardAgent:
                     generate_environment_specs,
                     explain_sfc_concept,
                     generate_test_plan,
+                    read_config_from_file,
                     save_config_to_file,
                 ],
             )
@@ -278,6 +289,7 @@ class SFCWizardAgent:
                     generate_environment_specs,
                     explain_sfc_concept,
                     generate_test_plan,
+                    read_config_from_file,
                     save_config_to_file,
                 ]
             )
@@ -1046,6 +1058,30 @@ Ask me about any of these concepts for detailed explanations!
 **Available AWS Targets**: {', '.join(self.sfc_knowledge['aws_targets'].keys())}
 """
 
+    def _read_config_from_file(self, filename: str) -> str:
+        """Read configuration from a JSON file"""
+        try:
+            # Add file extension if not provided
+            if not filename.lower().endswith('.json'):
+                filename += '.json'
+            
+            # Check if file exists
+            if not os.path.exists(filename):
+                return f"❌ File not found: '{filename}'"
+            
+            # Read from file
+            with open(filename, 'r') as file:
+                config = json.load(file)
+            
+            # Convert back to JSON string with proper indentation
+            config_json = json.dumps(config, indent=2)
+            
+            return f"✅ Configuration loaded successfully from '{filename}':\n\n```json\n{config_json}\n```"
+        except json.JSONDecodeError:
+            return f"❌ Invalid JSON format in file: '{filename}'"
+        except Exception as e:
+            return f"❌ Error reading configuration: {str(e)}"
+    
     def _save_config_to_file(self, config_json: str, filename: str) -> str:
         """Save configuration to a JSON file"""
         try:
@@ -1216,6 +1252,7 @@ Ask me about any of these concepts for detailed explanations!
         print("• 🔍 Debug existing SFC configurations")
         print("• 🛠️  Create new SFC configurations")
         print("• 💾 Save configurations to JSON files")
+        print("• 📂 Load configurations from JSON files")
         print("• 🧪 Test configurations against environments")
         print("• 🏗️  Define required deployment environments")
         print("• 📚 Explain SFC concepts and components")
