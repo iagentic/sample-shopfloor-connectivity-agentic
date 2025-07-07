@@ -1,2 +1,4 @@
 .venv
 sample_sfc_agent/__pycache__/
+runs/
+modules/

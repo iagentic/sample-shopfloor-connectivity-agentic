@@ -1,0 +1,65 @@
+{
+  "AWSVersion": "2022-04-02",
+  "Name": "Sinus Simulator to DEBUG Configuration",
+  "Description": "Configuration for Sinus Simulator sending data every 50ms to DEBUG target",
+  "LogLevel": "Trace",
+  "Schedules": [
+    {
+      "Name": "SinusSimulatorSchedule",
+      "Interval": 50,
+      "Active": true,
+      "TimestampLevel": "Both",
+      "Sources": {
+        "SIMULATOR-SOURCE": [
+          "*"
+        ]
+      },
+      "Targets": [
+        "DEBUGTarget"
+      ]
+    }
+  ],
+  "Sources": {
+    "SIMULATOR-SOURCE": {
+      "Name": "SinusSimulator",
+      "ProtocolAdapter": "SIMULATOR",
+      "Description": "Sinus wave simulator source",
+      "Channels": {
+        "Sinus": {
+          "Name": "SinusWave",
+          "ValueType": "Float64",
+          "SimulatorSpecific": {
+            "SimulationType": "Sinus"
+          }
+        }
+      }
+    }
+  },
+  "Targets": {
+    "DEBUGTarget": {
+      "Active": true,
+      "TargetType": "DEBUG-TARGET"
+    }
+  },
+  "TargetTypes": {
+    "DEBUG-TARGET": {
+      "JarFiles": [
+        "${MODULES_DIR}/debug-target/lib"
+      ],
+      "FactoryClassName": "com.amazonaws.sfc.debugtarget.DebugTargetWriter"
+    }
+  },
+  "AdapterTypes": {
+    "SIMULATOR": {
+      "JarFiles": [
+        "${MODULES_DIR}/simulator/lib"
+      ],
+      "FactoryClassName": "com.amazonaws.sfc.simulator.SimulatorSourceFactory"
+    }
+  },
+  "ProtocolAdapters": {
+    "SIMULATOR": {
+      "AdapterType": "SIMULATOR"
+    }
+  }
+}

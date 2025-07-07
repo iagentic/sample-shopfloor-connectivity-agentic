@@ -25,6 +25,8 @@ The SFC Wizard is your expert assistant for AWS Shopfloor Connectivity, an indus
 
 - **🔍 Debug Configurations**: Validate and troubleshoot existing SFC configurations
 - **🛠️ Create Templates**: Generate configuration templates for various protocol/target combinations
+- **💾 File Operations**: Save and load configurations to/from JSON files
+- **▶️ Local Testing**: Run configurations in isolated test environments
 - **🧪 Test Planning**: Create comprehensive test plans for SFC deployments
 - **🏗️ Environment Specs**: Define infrastructure requirements for SFC deployments
 - **📚 Expert Knowledge**: Explain SFC concepts, components, and best practices
@@ -61,6 +63,8 @@ Specialized assistant for industrial data connectivity to AWS
 • 🔍 Debug existing SFC configurations
 • 🛠️  Create new SFC configurations
 • 💾 Save configurations to JSON files
+• 📂 Load configurations from JSON files
+• ▶️  Run configurations in local test environments
 • 🧪 Test configurations against environments
 • 🏗️  Define required deployment environments
 • 📚 Explain SFC concepts and components
@@ -81,6 +85,7 @@ The wizard will generate a complete SFC configuration template with proper struc
 7. **`generate_test_plan`**: Comprehensive testing strategies
 8. **`save_config_to_file`**: Save SFC configurations to JSON files
 9. **`read_config_from_file`**: Load existing SFC configurations from JSON files
+10. **`run_sfc_config_locally`**: Execute configurations in isolated test environments
 
 ---
 
