@@ -60,6 +60,7 @@ Specialized assistant for industrial data connectivity to AWS
 🎯 I can help you with:
 • 🔍 Debug existing SFC configurations
 • 🛠️  Create new SFC configurations
+• 💾 Save configurations to JSON files
 • 🧪 Test configurations against environments
 • 🏗️  Define required deployment environments
 • 📚 Explain SFC concepts and components
@@ -78,6 +79,7 @@ The wizard will generate a complete SFC configuration template with proper struc
 5. **`generate_environment_specs`**: Infrastructure requirement specifications
 6. **`explain_sfc_concept`**: Detailed explanations of SFC components
 7. **`generate_test_plan`**: Comprehensive testing strategies
+8. **`save_config_to_file`**: Save SFC configurations to JSON files
 
 ---
 

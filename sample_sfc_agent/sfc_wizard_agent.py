@@ -241,6 +241,16 @@ class SFCWizardAgent:
                 config_json: SFC configuration to test
             """
             return self._generate_test_plan(config_json)
+            
+        @tool
+        def save_config_to_file(config_json: str, filename: str) -> str:
+            """Save an SFC configuration to a JSON file.
+
+            Args:
+                config_json: SFC configuration to save
+                filename: Name of the file to save the configuration to
+            """
+            return self._save_config_to_file(config_json, filename)
 
         # Create agent with SFC-specific tools
         try:
@@ -255,6 +265,7 @@ class SFCWizardAgent:
                     generate_environment_specs,
                     explain_sfc_concept,
                     generate_test_plan,
+                    save_config_to_file,
                 ],
             )
         except Exception:
@@ -267,6 +278,7 @@ class SFCWizardAgent:
                     generate_environment_specs,
                     explain_sfc_concept,
                     generate_test_plan,
+                    save_config_to_file,
                 ]
             )
 
@@ -1034,6 +1046,26 @@ Ask me about any of these concepts for detailed explanations!
 **Available AWS Targets**: {', '.join(self.sfc_knowledge['aws_targets'].keys())}
 """
 
+    def _save_config_to_file(self, config_json: str, filename: str) -> str:
+        """Save configuration to a JSON file"""
+        try:
+            # Parse the JSON to ensure it's valid
+            config = json.loads(config_json)
+            
+            # Add file extension if not provided
+            if not filename.lower().endswith('.json'):
+                filename += '.json'
+            
+            # Write to file
+            with open(filename, 'w') as file:
+                json.dump(config, file, indent=2)
+            
+            return f"✅ Configuration saved successfully to '{filename}'"
+        except json.JSONDecodeError:
+            return "❌ Invalid JSON configuration provided"
+        except Exception as e:
+            return f"❌ Error saving configuration: {str(e)}"
+    
     def _generate_test_plan(self, config_json: str) -> str:
         """Generate a test plan for SFC configuration"""
         try:
@@ -1183,6 +1215,7 @@ Ask me about any of these concepts for detailed explanations!
         print("🎯 I can help you with:")
         print("• 🔍 Debug existing SFC configurations")
         print("• 🛠️  Create new SFC configurations")
+        print("• 💾 Save configurations to JSON files")
         print("• 🧪 Test configurations against environments")
         print("• 🏗️  Define required deployment environments")
         print("• 📚 Explain SFC concepts and components")
