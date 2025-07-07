@@ -1,18 +1,11 @@
-# Agent Framework with Strands SDK
+# SFC Wizard Agent with Strands SDK
 
-A collection of specialized AI agents built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python), including a general-purpose restricted agent and a specialized AWS Shopfloor Connectivity (SFC) wizard.
+A specialized AI agent built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) for AWS Shopfloor Connectivity (SFC) Framework.
 
-## Available Agents
-
-### 1. SFC Wizard Agent 🏭
+## SFC Wizard Agent 🏭
 **Specialized for AWS Shopfloor Connectivity (SFC) Framework**
 
 A comprehensive assistant for industrial data connectivity, helping with debugging, creating, and testing SFC configurations for connecting manufacturing equipment to AWS services.
-
-### 2. Restricted Agent 🤖
-**General-purpose constrained assistant**
-
-A safety-focused agent that asks predefined questions on startup and operates within specific constraints and allowed topics.
 
 ---
 
@@ -48,7 +41,7 @@ The SFC Wizard is your expert assistant for AWS Shopfloor Connectivity, an indus
 ### How to Run
 
 ```bash
-uv run python -m sample_sfc_agent.sfc_wizard_agent
+./scripts/run.sh
 ```
 
 ### Example Interaction
@@ -89,52 +82,6 @@ The wizard will generate a complete SFC configuration template with proper struc
 
 ---
 
-## Restricted Agent
-
-### Overview
-A safety-focused AI agent that asks predefined questions on startup and operates within specific constraints to ensure controlled and predictable interactions.
-
-### Features
-
-- **Predefined Startup Questions**: Asks 5 specific questions every time it boots up
-- **Restricted Operations**: Only allows certain types of tasks and topics
-- **Built-in Safety**: Filters out prohibited content and dangerous requests
-- **Custom Tools**: Includes user info retrieval, topic validation, and simple calculator
-- **Multiple Model Support**: Supports Amazon Bedrock (default) with fallback options
-
-### Predefined Questions
-
-The agent asks these questions on every startup:
-
-1. What is your name?
-2. What task would you like me to help you with today?
-3. Do you have any specific constraints or requirements?
-4. What is the expected outcome of this task?
-5. Are there any resources or information I should be aware of?
-
-### Allowed Topics
-
-The agent is restricted to help with:
-- General assistance
-- Information lookup
-- Text processing
-- Simple calculations
-- Task planning
-
-### Usage
-
-```bash
-./scripts/test.sh
-```
-
-Alternatively, you can run directly with:
-
-```bash
-uv run python -m sample_sfc_agent.restricted_agent
-```
-
----
-
 ## Installation
 
 ### Prerequisites
@@ -164,28 +111,23 @@ The project uses `pyproject.toml` for dependency management with `uv` package ma
 
 ## Architecture
 
-Both agents are built on the Strands framework with specialized tool sets:
+The SFC Wizard Agent is built on the Strands framework with specialized tool sets:
 
-### Common Components
+### Components
 
 - **Strands Agent**: Core AI agent framework
 - **Custom Tools**: Agent-specific functionality using `@tool` decorator
 - **Model Support**: Amazon Bedrock with fallbacks
 - **Environment Configuration**: `.env` based configuration
 
-### Agent-Specific Tools
+### SFC Wizard Tools
 
-**SFC Wizard Tools:**
 - Industrial protocol knowledge base
 - Configuration validation and generation
 - Performance optimization suggestions
 - Testing and deployment guidance
-
-**Restricted Agent Tools:**
-- User information collection
-- Topic validation
-- Safe mathematical calculations
-- Content filtering
+- File operations for configuration management
+- Local testing capabilities
 
 ## Configuration
 
@@ -204,18 +146,33 @@ Configure:
 
 ### Model Configuration
 
-Both agents try to use Amazon Bedrock by default but fall back to Strands default models if unavailable.
+The SFC Wizard Agent tries to use Amazon Bedrock by default but falls back to Strands default models if unavailable.
 
 For Amazon Bedrock:
 1. Configure AWS credentials
 2. Ensure access to Claude models in your AWS account
 3. Set appropriate AWS region (default: us-west-2)
 
-## Running the Agents
+## Running the Agent
 
 ### SFC Wizard Agent
 
-To run the SFC Wizard interactively:
+#### Using the run script (Recommended)
+
+The easiest way to run the SFC Wizard Agent is using the dedicated run script:
+
+```bash
+./scripts/run.sh
+```
+
+This script will:
+- Check if `uv` is installed and provide installation instructions if missing
+- Automatically run `scripts/init.sh` if dependencies aren't installed
+- Launch the SFC Wizard Agent with proper environment setup
+
+#### Direct execution
+
+You can also run the SFC Wizard directly:
 
 ```bash
 uv run python -m sample_sfc_agent.sfc_wizard_agent
@@ -225,23 +182,13 @@ Then you can test various functions like:
 - `validate_sfc_config` with JSON configuration
 - `create_sfc_config_template` - e.g., "Create template for MODBUS to AWS-KINESIS"
 
-### Restricted Agent
+### Testing with scripts/test.sh
 
-To run the Restricted Agent:
+The `scripts/test.sh` script runs the SFC wizard agent for interactive testing:
 
 ```bash
 ./scripts/test.sh
 ```
-
-Or run directly:
-
-```bash
-uv run python -m sample_sfc_agent.restricted_agent
-```
-
-### Testing with scripts/test.sh
-
-The `scripts/test.sh` script runs the restricted agent for interactive testing.
 
 ### Example SFC Configuration Test
 
@@ -259,20 +206,13 @@ config = {
 
 ## Use Cases
 
-### SFC Wizard Use Cases
-
 1. **Manufacturing Integration**: Connect PLCs and SCADA systems to AWS
 2. **IoT Data Pipeline**: Stream sensor data to AWS services
 3. **Industrial Analytics**: Process manufacturing data in the cloud
 4. **Predictive Maintenance**: Collect equipment data for ML models
 5. **Digital Twin**: Real-time data synchronization
-
-### Restricted Agent Use Cases
-
-1. **Educational Tools**: Safe AI interaction for learning
-2. **Customer Support**: Controlled assistance within specific domains
-3. **Data Processing**: Text and numerical operations with safety constraints
-4. **Task Planning**: Structured planning within defined boundaries
+6. **Configuration Management**: Validate, create, and optimize SFC configurations
+7. **Troubleshooting**: Diagnose and resolve SFC deployment issues
 
 ## Troubleshooting
 
@@ -290,7 +230,7 @@ config = {
 - strands-agents-tools
 - python-dotenv
 
-## Extending the Agents
+## Extending the Agent
 
 ### Adding New SFC Protocols
 
@@ -303,20 +243,9 @@ Update the `supported_protocols` dictionary in `SFCWizardAgent._load_sfc_knowled
 }
 ```
 
-### Adding New Restricted Agent Topics
-
-Modify the `allowed_topics` list in `RestrictedAgent.__init__()`:
-
-```python
-self.allowed_topics = [
-    "your new topic",
-    # ... existing topics
-]
-```
-
 ### Creating Custom Tools
 
-Use the `@tool` decorator for both agents:
+Use the `@tool` decorator to add new functionality:
 
 ```python
 @tool
