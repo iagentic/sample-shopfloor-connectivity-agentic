@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sample-sfc-agent"
+version = "0.1.0"
+description = "Restricted agent with SFC wizard capabilities"
+authors = [
+    {name = "Gezim Musliaj", email = "gmuslia@amazon.de"},
+    {name = "Hubert Asamer", email = "asamerh@amazon.de"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "strands-agents",
+    "strands-agents-tools",
+    "python-dotenv",
+    "black"
+]
+
+[project.scripts]
+restricted-agent = "sample_sfc_agent.restricted_agent:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["sample_sfc_agent"]
+
+[project.optional-dependencies]
+dev = []
+
+[tool.uv]
+dev-dependencies = []
