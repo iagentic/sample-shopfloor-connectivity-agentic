@@ -281,6 +281,11 @@ class SFCWizardAgent:
             """
             return self._run_sfc_config_locally(config_json, config_name)
 
+        @tool
+        def what_is_sfc() -> str:
+            """Provides an explanation of what Shop Floor Connectivity (SFC) is and its key features."""
+            return self._what_is_sfc()
+
         # Create agent with SFC-specific tools
         try:
             model = BedrockModel()
@@ -297,6 +302,7 @@ class SFCWizardAgent:
                     read_config_from_file,
                     save_config_to_file,
                     run_sfc_config_locally,
+                    what_is_sfc,
                 ],
             )
         except Exception:
@@ -312,6 +318,7 @@ class SFCWizardAgent:
                     read_config_from_file,
                     save_config_to_file,
                     run_sfc_config_locally,
+                    what_is_sfc,
                 ]
             )
 
@@ -898,6 +905,29 @@ class SFCWizardAgent:
             )
 
         return "\n".join(specs)
+
+    def _what_is_sfc(self) -> str:
+        """Provide an explanation of what SFC (Shop Floor Connectivity) is"""
+        return """
+🏭 **Shop Floor Connectivity (SFC)**
+
+Shop Floor Connectivity (SFC) is an industrial data ingestion enabler, that can quickly deliver customizable greenfield & brownfield connectivity solutions.
+
+**Key Features:**
+• **Industrial Connectivity**: Connect to various industrial protocols and devices
+• **Flexible Integration**: Support for both greenfield (new) and existing (brownfield) installations
+• **Data Ingestion**: Collect, transform, and route industrial data
+• **AWS Integration**: Seamless connection to AWS services for processing and analysis
+• **Customizable**: Adaptable to specific industrial environments and requirements
+• **Scalable**: Handle diverse data volumes from industrial equipment
+
+**Benefits:**
+• Accelerate digital transformation of industrial environments
+• Bridge the gap between OT (Operational Technology) and IT systems
+• Enable data-driven decision making for manufacturing processes
+• Reduce time-to-value for industrial IoT implementations
+• Simplify complex industrial data integration challenges
+"""
 
     def _explain_concept(self, concept: str) -> str:
         """Explain SFC concepts"""
