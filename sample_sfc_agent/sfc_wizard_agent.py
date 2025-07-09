@@ -315,17 +315,22 @@ class SFCWizardAgent:
             
             
         @tool
-        def clean_runs_folder(mode: str = "keep-recent", count: int = 5) -> str:
-            """Clean the runs folder by removing old SFC configuration runs to free up disk space.
+        def clean_runs_folder() -> str:
+            """Clean the runs folder by removing all SFC runs to free up disk space.
+            
+            This tool will ask for confirmation (y/n) before deleting any files.
+            Active configurations will be preserved.
+            """
+            return self._clean_runs_folder()
+            
+        @tool
+        def confirm_clean_runs_folder(confirmation: str) -> str:
+            """Confirm and execute the cleaning of the runs folder after receiving user confirmation.
             
             Args:
-                mode: Cleaning mode (options: 'keep-recent', 'older-than', 'all')
-                    - 'keep-recent': Keep the N most recent runs and delete the rest
-                    - 'older-than': Delete runs older than N days
-                    - 'all': Delete all runs (use with caution)
-                count: Number of runs to keep or age threshold in days, depending on mode
+                confirmation: User's response (y/n) to the deletion confirmation prompt
             """
-            return self._clean_runs_folder(mode, count)
+            return self._confirm_clean_runs_folder(confirmation)
 
         # Create agent with SFC-specific tools
         try:
@@ -346,6 +351,7 @@ class SFCWizardAgent:
                     what_is_sfc,
                     tail_logs,
                     clean_runs_folder,
+                    confirm_clean_runs_folder,
                 ],
             )
         except Exception:
@@ -364,6 +370,7 @@ class SFCWizardAgent:
                     what_is_sfc,
                     tail_logs,
                     clean_runs_folder,
+                    confirm_clean_runs_folder,
                 ]
             )
 
@@ -1981,9 +1988,9 @@ You can check the logs in the test directory for status information.
 
             modules.add(target_module)
 
-        # Always include core modules
-        modules.add("core")
-        modules.add("metrics")
+        # No longer automatically including core modules
+        # modules.add("core")
+        # modules.add("metrics")
 
         return list(modules)
 
@@ -2216,153 +2223,133 @@ You can check the logs in the test directory for status information.
         except Exception as e:
             return f"❌ Error running last configuration: {str(e)}"
 
-    def _clean_runs_folder(self, mode: str = "keep-recent", count: int = 5) -> str:
-        """Clean the runs folder by removing old SFC runs to free up disk space
+    def _clean_runs_folder(self) -> str:
+        """Clean the runs folder by removing all SFC runs to free up disk space
+        
+        Returns:
+            Result message with information about the cleanup operation
+        """
+        try:
+            base_dir = os.getcwd()
+            runs_dir = os.path.join(base_dir, "runs")
+            
+            # Check if runs folder exists
+            if not os.path.exists(runs_dir) or not os.path.isdir(runs_dir):
+                return "❌ No runs folder found at path: " + runs_dir
+            
+            # Get list of run folders
+            run_dirs = []
+            for entry in os.listdir(runs_dir):
+                full_path = os.path.join(runs_dir, entry)
+                if os.path.isdir(full_path):
+                    run_dirs.append(full_path)
+            
+            if not run_dirs:
+                return "✅ Runs folder is already empty"
+            
+            # Prompt for confirmation
+            total_runs = len(run_dirs)
+            confirmation_msg = f"⚠️ WARNING: This will delete all {total_runs} run directories in {runs_dir}!\n"
+            confirmation_msg += "Do you want to proceed? (y/n): "
+            
+            # Ask for confirmation - will need to be implemented by user
+            return confirmation_msg
+            
+        except Exception as e:
+            return f"❌ Error scanning runs folder: {str(e)}"
+    
+    def _confirm_clean_runs_folder(self, confirmation: str) -> str:
+        """Execute the runs folder cleanup after confirmation
         
         Args:
-            mode: Cleaning mode (keep-recent, older-than, all)
-            count: Number of runs to keep or age threshold in days
+            confirmation: User confirmation (y/n)
             
         Returns:
             Result message with information about the cleanup operation
         """
-        base_dir = os.getcwd()
-        runs_dir = os.path.join(base_dir, "runs")
+        if confirmation.lower() not in ["y", "yes"]:
+            return "❌ Operation canceled by user"
         
-        # Check if runs folder exists
-        if not os.path.exists(runs_dir) or not os.path.isdir(runs_dir):
-            return "❌ No runs folder found at path: " + runs_dir
-        
-        # Get list of run folders
-        run_dirs = []
-        for entry in os.listdir(runs_dir):
-            full_path = os.path.join(runs_dir, entry)
-            if os.path.isdir(full_path):
-                # Get directory creation time
-                creation_time = os.path.getctime(full_path)
-                # Store tuple of (directory path, creation time)
-                run_dirs.append((full_path, creation_time, entry))
-        
-        if not run_dirs:
-            return "✅ Runs folder is already empty"
-        
-        # Initial message with total run count
-        total_runs = len(run_dirs)
-        msg = f"🧹 Found {total_runs} SFC run{'s' if total_runs != 1 else ''} in {runs_dir}\n\n"
-        
-        # Sort run directories by creation time (newest first)
-        run_dirs.sort(key=lambda x: x[1], reverse=True)
-        
-        # Identify directories to delete based on the selected mode
-        dirs_to_delete = []
-        
-        if mode == "all":
-            # Confirm with a warning message since this is destructive
-            msg += "⚠️ WARNING: 'all' mode will delete ALL run directories!\n\n"
-            dirs_to_delete = run_dirs.copy()
+        try:
+            base_dir = os.getcwd()
+            runs_dir = os.path.join(base_dir, "runs")
             
-        elif mode == "keep-recent":
-            # Keep the N most recent runs, delete the rest
-            if count <= 0:
-                return "❌ Invalid count: must be greater than 0 for 'keep-recent' mode"
+            # Check if runs folder exists again (in case it was deleted between calls)
+            if not os.path.exists(runs_dir) or not os.path.isdir(runs_dir):
+                return "❌ No runs folder found at path: " + runs_dir
             
-            # If we have more directories than the count, delete the older ones
-            if len(run_dirs) > count:
-                dirs_to_delete = run_dirs[count:]
-                msg += f"Mode: keep-recent (keeping {count} most recent runs)\n\n"
-            else:
-                msg += f"✅ There are only {len(run_dirs)} runs, which is <= {count} to keep. No cleanup needed.\n"
-                return msg
+            # Define helper function to get directory size
+            def get_dir_size(path):
+                total_size = 0
+                for dirpath, _, filenames in os.walk(path):
+                    for f in filenames:
+                        fp = os.path.join(dirpath, f)
+                        if os.path.exists(fp):
+                            total_size += os.path.getsize(fp)
+                return total_size
+            
+            # Track deletion statistics
+            deleted_count = 0
+            skipped_count = 0
+            deleted_size = 0
+            
+            # List directories again (might have changed since first scan)
+            run_dirs = []
+            for entry in os.listdir(runs_dir):
+                full_path = os.path.join(runs_dir, entry)
+                if os.path.isdir(full_path):
+                    run_dirs.append(full_path)
+            
+            # Skip active runs
+            to_delete = []
+            for dir_path in run_dirs:
+                dir_name = os.path.basename(dir_path)
+                # Skip current and last config directories
+                if ((self.current_config_name and dir_name == self.current_config_name) or
+                    (self.last_config_name and dir_name == self.last_config_name)):
+                    skipped_count += 1
+                    continue
                 
-        elif mode == "older-than":
-            # Delete runs older than N days
-            if count <= 0:
-                return "❌ Invalid count: must be greater than 0 for 'older-than' mode"
-                
-            # Calculate the cutoff time (N days ago)
-            cutoff_time = time.time() - (count * 24 * 60 * 60)
+                to_delete.append(dir_path)
             
-            # Find directories older than the cutoff
-            dirs_to_delete = [dir_info for dir_info in run_dirs if dir_info[1] < cutoff_time]
-            msg += f"Mode: older-than (deleting runs older than {count} days)\n\n"
+            # Process the directories to delete
+            for dir_path in to_delete:
+                try:
+                    # Calculate directory size before deletion for reporting
+                    dir_size = get_dir_size(dir_path)
+                    
+                    # Delete the directory
+                    shutil.rmtree(dir_path)
+                    
+                    deleted_count += 1
+                    deleted_size += dir_size
+                    
+                except Exception as e:
+                    print(f"Error deleting {dir_path}: {str(e)}")
+                    skipped_count += 1
             
-        else:
-            return f"❌ Invalid mode: {mode}. Must be one of: 'keep-recent', 'older-than', 'all'"
-        
-        # Check if any of the directories to delete is the current run
-        if self.current_config_name:
-            current_run_path = os.path.join(runs_dir, self.current_config_name)
-            dirs_to_delete = [(path, ctime, name) for path, ctime, name in dirs_to_delete 
-                             if path != current_run_path]
-            
-        # Skip the directory with the last config if it exists
-        if self.last_config_name and self.last_config_name != self.current_config_name:
-            last_config_path = os.path.join(runs_dir, self.last_config_name)
-            # Remove from dirs_to_delete if it's there
-            dirs_to_delete = [(path, ctime, name) for path, ctime, name in dirs_to_delete 
-                             if path != last_config_path]
-        
-        # If no directories to delete
-        if not dirs_to_delete:
-            if mode == "all":
-                msg += "⚠️ Cannot delete active or last run configurations. No other runs found.\n"
+            # Format the deleted size for display
+            if deleted_size < 1024:
+                size_str = f"{deleted_size} bytes"
+            elif deleted_size < 1024 * 1024:
+                size_str = f"{deleted_size / 1024:.2f} KB"
+            elif deleted_size < 1024 * 1024 * 1024:
+                size_str = f"{deleted_size / (1024 * 1024):.2f} MB"
             else:
-                msg += "✅ No directories to delete based on the criteria.\n"
+                size_str = f"{deleted_size / (1024 * 1024 * 1024):.2f} GB"
+            
+            # Final message
+            msg = f"✅ Cleanup completed:\n"
+            msg += f"• Deleted: {deleted_count} run{'s' if deleted_count != 1 else ''}\n"
+            msg += f"• Freed up: {size_str}\n"
+            
+            if skipped_count > 0:
+                msg += f"• Skipped: {skipped_count} run{'s' if skipped_count != 1 else ''} (active runs or could not delete)\n"
+            
             return msg
             
-        # Delete the identified directories
-        deleted_count = 0
-        skipped_count = 0
-        deleted_size = 0
-        
-        # Helper function to get directory size
-        def get_dir_size(path):
-            total_size = 0
-            for dirpath, _, filenames in os.walk(path):
-                for f in filenames:
-                    fp = os.path.join(dirpath, f)
-                    if os.path.exists(fp):
-                        total_size += os.path.getsize(fp)
-            return total_size
-            
-        # Process the directories to delete
-        for dir_path, _, dir_name in dirs_to_delete:
-            try:
-                # Calculate directory size before deletion for reporting
-                dir_size = get_dir_size(dir_path)
-                
-                # Delete the directory
-                shutil.rmtree(dir_path)
-                
-                deleted_count += 1
-                deleted_size += dir_size
-                
-            except Exception as e:
-                print(f"Error deleting {dir_path}: {str(e)}")
-                skipped_count += 1
-        
-        # Format the deleted size for display
-        if deleted_size < 1024:
-            size_str = f"{deleted_size} bytes"
-        elif deleted_size < 1024 * 1024:
-            size_str = f"{deleted_size / 1024:.2f} KB"
-        elif deleted_size < 1024 * 1024 * 1024:
-            size_str = f"{deleted_size / (1024 * 1024):.2f} MB"
-        else:
-            size_str = f"{deleted_size / (1024 * 1024 * 1024):.2f} GB"
-        
-        # Final message
-        msg += f"✅ Cleanup completed:\n"
-        msg += f"• Deleted: {deleted_count} run{'s' if deleted_count != 1 else ''}\n"
-        msg += f"• Freed up: {size_str}\n"
-        
-        if skipped_count > 0:
-            msg += f"• Skipped: {skipped_count} run{'s' if skipped_count != 1 else ''} (could not delete)\n"
-        
-        remaining = total_runs - deleted_count
-        msg += f"• Remaining: {remaining} run{'s' if remaining != 1 else ''}\n"
-        
-        return msg
+        except Exception as e:
+            return f"❌ Error cleaning runs folder: {str(e)}"
 
     def _tail_logs(self, lines: int = 20, follow: bool = False) -> str:
         """Return the most recent log entries, optionally following in real-time
