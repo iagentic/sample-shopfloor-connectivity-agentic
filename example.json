@@ -47,7 +47,7 @@
       "TargetType": "FILE-TARGET",
       "BufferSize": 100,
       "Extension": ".json",
-      "Directory": "sfc/data"
+      "Directory": "data"
     }
   },
   "TargetTypes": {

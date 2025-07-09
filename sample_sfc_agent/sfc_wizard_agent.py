@@ -95,6 +95,11 @@ class SFCWizardAgent:
                 },
                 "AWS-SITEWISE": {"service": "AWS IoT SiteWise", "real_time": True},
                 "AWS-S3": {"service": "Amazon S3", "real_time": False},
+                "AWS-S3-TABLES": {
+                    "service": "Amazon S3 Tables (S3Tables)", 
+                    "real_time": False,
+                    "description": "AWS S3 Tables (also known as S3Tables, Iceberg or AWS-S3-TABLES) target adapter enables writing data to S3 in a structured format based on Apache Iceberg table format. Supports Parquet, JSON, and CSV formats with customizable partitioning, schema definition, and compression options. The Iceberg-compatible format allows for efficient data querying and analytics."
+                },
                 "AWS-KINESIS": {"service": "Amazon Kinesis", "real_time": True},
                 "AWS-KINESIS-FIREHOSE": {
                     "service": "Amazon Kinesis Data Firehose",
@@ -418,6 +423,15 @@ class SFCWizardAgent:
                 self.validation_errors.append(
                     f"Source '{source_name}' missing 'ProtocolAdapter'"
                 )
+            else:
+                # Strict validation: Check if protocol is supported
+                protocol = source_config["ProtocolAdapter"]
+                if protocol not in self.sfc_knowledge["supported_protocols"]:
+                    self.validation_errors.append(
+                        f"Source '{source_name}' uses unsupported protocol adapter: '{protocol}'. "
+                        f"Supported protocols: {', '.join(sorted(self.sfc_knowledge['supported_protocols'].keys()))}"
+                    )
+                    
             if "Channels" not in source_config:
                 self.validation_errors.append(
                     f"Source '{source_name}' missing 'Channels'"
@@ -434,6 +448,27 @@ class SFCWizardAgent:
                 self.validation_errors.append(
                     f"Target '{target_name}' missing 'TargetType'"
                 )
+            else:
+                # Strict validation: Check if target type is supported
+                target_type = target_config["TargetType"]
+                
+                # Check in AWS targets
+                aws_targets = self.sfc_knowledge["aws_targets"].keys()
+                edge_targets = [target["description"] for target in self.sfc_knowledge["edge_targets"].values()]
+                
+                # Special case handling for edge targets that have -TARGET suffix
+                if target_type.endswith("-TARGET"):
+                    base_type = target_type[:-7]  # Remove -TARGET suffix
+                    if base_type in self.sfc_knowledge["edge_targets"]:
+                        continue
+                
+                # Check if target is in either AWS targets or edge targets
+                if target_type not in aws_targets and target_type not in edge_targets:
+                    self.validation_errors.append(
+                        f"Target '{target_name}' uses unsupported target type: '{target_type}'. "
+                        f"Supported AWS targets: {', '.join(sorted(aws_targets))}. "
+                        f"Supported edge targets: {', '.join(sorted(self.sfc_knowledge['edge_targets'].keys()))}"
+                    )
 
     def _validate_adapters(self, config: Dict[str, Any]):
         """Validate adapter configurations"""
@@ -648,6 +683,25 @@ class SFCWizardAgent:
                     "Interval": 1000,
                 }
             )
+        elif target == "AWS-S3-TABLES":
+            base_config[f"{target}Target"].update(
+               {
+                    "Region": "us-east-1",
+                    "TableBucket": "sfc-data-tables-bucket",
+                    "Interval": 60,
+                    "BufferCount": 100,
+                    "Namespace": "sfc",
+                    "AutoCreate": True,
+                    "Tables": [
+                        {
+                            "TableName": "sfc_table",
+                            "Schema": [],
+                            "Mappings": [],
+                            "Partition": {}
+                        }
+                    ]
+                }
+            )
         elif target == "AWS-IOT-ANALYTICS":
             base_config[f"{target}Target"].update(
                 {
@@ -819,6 +873,11 @@ class SFCWizardAgent:
             target_types["AWS-KINESIS-FIREHOSE"] = {
                 "JarFiles": ["${MODULES_DIR}/aws-kinesis-firehose-target/lib"],
                 "FactoryClassName": "com.amazonaws.sfc.awskinesisfirehose.AwsKinesisFirehoseTargetWriter",
+            }
+        elif target == "AWS-S3-TABLES":
+            target_types["AWS-S3-TABLES"] = {
+                "JarFiles": ["${MODULES_DIR}/aws-s3-tables-target/lib"],
+                "FactoryClassName": "com.amazonaws.sfc.awss3tables.AwsS3TablesTargetWriter",
             }
         elif target == "AWS-LAMBDA":
             target_types["AWS-LAMBDA"] = {
