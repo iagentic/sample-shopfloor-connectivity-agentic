@@ -14,7 +14,12 @@ import tempfile
 import subprocess
 import requests
 import zipfile
-from typing import List, Dict, Any
+import logging
+import time
+import threading
+import queue
+from logging.handlers import RotatingFileHandler
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -142,6 +147,12 @@ class SFCWizardAgent:
 
     def _create_agent(self) -> Agent:
         """Create a Strands agent with SFC-specific tools"""
+        
+        # Current running SFC config and log tail thread
+        self.current_config_name = None
+        self.log_tail_thread = None
+        self.log_tail_stop_event = threading.Event()
+        self.log_buffer = queue.Queue(maxsize=100)  # Buffer for log messages
 
         @tool
         def validate_sfc_config(config_json: str) -> str:
@@ -286,6 +297,35 @@ class SFCWizardAgent:
         def what_is_sfc() -> str:
             """Provides an explanation of what Shop Floor Connectivity (SFC) is and its key features."""
             return self._what_is_sfc()
+        
+        @tool
+        def tail_logs(lines: int = 20, follow: bool = False) -> str:
+            """Display the most recent lines from the SFC log file for the current running configuration.
+            
+            Args:
+                lines: Number of recent log lines to show (default: 20)
+                follow: If True, continuously display new log lines in real-time.
+                        To exit follow mode, press Ctrl+C in the terminal.
+            
+            Note: When follow=True, the function will enter a real-time viewing mode.
+                  The only way to exit this mode is by pressing Ctrl+C in the terminal.
+                  After exiting, you'll be returned to the command prompt.
+            """
+            return self._tail_logs(lines, follow)
+            
+            
+        @tool
+        def clean_runs_folder(mode: str = "keep-recent", count: int = 5) -> str:
+            """Clean the runs folder by removing old SFC configuration runs to free up disk space.
+            
+            Args:
+                mode: Cleaning mode (options: 'keep-recent', 'older-than', 'all')
+                    - 'keep-recent': Keep the N most recent runs and delete the rest
+                    - 'older-than': Delete runs older than N days
+                    - 'all': Delete all runs (use with caution)
+                count: Number of runs to keep or age threshold in days, depending on mode
+            """
+            return self._clean_runs_folder(mode, count)
 
         # Create agent with SFC-specific tools
         try:
@@ -304,6 +344,8 @@ class SFCWizardAgent:
                     save_config_to_file,
                     run_sfc_config_locally,
                     what_is_sfc,
+                    tail_logs,
+                    clean_runs_folder,
                 ],
             )
         except Exception:
@@ -320,6 +362,8 @@ class SFCWizardAgent:
                     save_config_to_file,
                     run_sfc_config_locally,
                     what_is_sfc,
+                    tail_logs,
+                    clean_runs_folder,
                 ]
             )
 
@@ -1625,6 +1669,24 @@ Ask me about any of these concepts for detailed explanations!
     def _run_sfc_config_locally(self, config_json: str, config_name: str = "") -> str:
         """Run SFC configuration locally in a test environment"""
         try:
+            # First, terminate any existing SFC processes
+            if self.active_processes:
+                print("🛑 Stopping existing SFC processes before starting a new one...")
+                for process in self.active_processes:
+                    if process.poll() is None:  # Process is still running
+                        try:
+                            process.terminate()
+                            process.wait(timeout=2)  # Wait for up to 2 seconds
+                        except:
+                            # If termination fails, force kill
+                            try:
+                                process.kill()
+                            except:
+                                pass
+                # Clear the list of active processes
+                self.active_processes = []
+                print("✅ Existing SFC processes terminated")
+
             # Parse the JSON to ensure it's valid
             config = json.loads(config_json)
 
@@ -1820,22 +1882,49 @@ Ask me about any of these concepts for detailed explanations!
             env = os.environ.copy()
             env["SFC_DEPLOYMENT_DIR"] = os.path.abspath(modules_dir)
             env["MODULES_DIR"] = os.path.abspath(modules_dir)
-
-            # Run in background with environment variables
-            if os.name == "nt":  # Windows
-                process = subprocess.Popen(
-                    command,
-                    cwd=test_dir,
-                    env=env,
-                    creationflags=subprocess.CREATE_NEW_CONSOLE,
-                )
-            else:  # Unix-like
-                process = subprocess.Popen(
-                    command, cwd=test_dir, env=env, start_new_session=True
-                )
+            
+            # Set up log file with rotation
+            log_dir = os.path.join(test_dir, "logs")
+            os.makedirs(log_dir, exist_ok=True)
+            log_file_path = os.path.join(log_dir, "sfc.log")
+            
+            # Create a rotating file handler
+            log_handler = RotatingFileHandler(
+                log_file_path,
+                maxBytes=10 * 1024 * 1024,  # 10 MB
+                backupCount=5,
+                mode='a'
+            )
+            
+            # Create logger
+            logger = logging.getLogger(f"sfc_{config_name}")
+            logger.setLevel(logging.INFO)
+            logger.addHandler(log_handler)
+            
+            # Create log file and open it for the process output
+            log_file = open(log_file_path, 'a')
+            
+            # Run in background with environment variables and redirect output to log file
+            process = subprocess.Popen(
+                command, 
+                cwd=test_dir, 
+                env=env, 
+                stdout=log_file,
+                stderr=log_file,
+                bufsize=1,  # Line buffered
+                universal_newlines=True
+            )
 
             # Add to active processes for cleanup when wizard exits
             self.active_processes.append(process)
+            
+            # Store current config name for log tailing and tracking last config
+            self.current_config_name = config_name
+            self.last_config_name = config_name
+            self.last_config_file = config_filename
+            
+            # Start log tail thread if it's not already running
+            self._start_log_tail_thread(log_file_path)
 
             # Prepare the response message
             modules_status = ""
@@ -2057,6 +2146,331 @@ You can check the logs in the test directory for status information.
 
         return "\n".join(test_plan)
 
+    def _start_log_tail_thread(self, log_file_path: str):
+        """Start a thread to tail the SFC log file and keep a buffer of recent log entries"""
+        # If a thread is already running, stop it before starting a new one
+        if self.log_tail_thread and self.log_tail_thread.is_alive():
+            self.log_tail_stop_event.set()
+            self.log_tail_thread.join(1)  # Wait up to 1 second for thread to stop
+        
+        # Clear any existing stop event and create a new one
+        self.log_tail_stop_event.clear()
+        
+        # Create and start the thread
+        self.log_tail_thread = threading.Thread(
+            target=self._log_tail_worker,
+            args=(log_file_path, self.log_tail_stop_event, self.log_buffer),
+            daemon=True
+        )
+        self.log_tail_thread.start()
+    
+    def _log_tail_worker(self, log_file_path: str, stop_event: threading.Event, log_buffer: queue.Queue):
+        """Worker thread that continuously reads from the log file and buffers new entries"""
+        try:
+            with open(log_file_path, 'r') as log_file:
+                # Go to the end of the file
+                log_file.seek(0, 2)
+                
+                while not stop_event.is_set():
+                    line = log_file.readline()
+                    if line:
+                        # If the buffer is full, remove the oldest entry
+                        if log_buffer.full():
+                            try:
+                                log_buffer.get_nowait()
+                            except queue.Empty:
+                                pass
+                        
+                        # Add the new log line to the buffer
+                        try:
+                            log_buffer.put_nowait(line.rstrip())
+                        except queue.Full:
+                            pass  # Buffer is full, skip this line
+                    else:
+                        # No new data, wait a bit before checking again
+                        time.sleep(0.1)
+        except Exception as e:
+            # If any error occurs, just print it and exit the thread
+            print(f"Log tail thread error: {str(e)}")
+    
+    def _run_last_config(self) -> str:
+        """Run the last SFC configuration that was previously executed"""
+        if not self.last_config_file or not self.last_config_name:
+            return "❌ No previous SFC configuration found. Please run a configuration first."
+        
+        try:
+            # Check if the last config file exists
+            if not os.path.exists(self.last_config_file):
+                return f"❌ Last configuration file not found: {self.last_config_file}"
+            
+            # Read the configuration from the file
+            with open(self.last_config_file, 'r') as file:
+                config_json = file.read()
+            
+            print(f"🔄 Restarting last configuration: {self.last_config_name}")
+            
+            # Run the configuration using the existing method
+            # We pass the same config name to ensure it runs in the same directory
+            return self._run_sfc_config_locally(config_json, self.last_config_name)
+            
+        except Exception as e:
+            return f"❌ Error running last configuration: {str(e)}"
+
+    def _clean_runs_folder(self, mode: str = "keep-recent", count: int = 5) -> str:
+        """Clean the runs folder by removing old SFC runs to free up disk space
+        
+        Args:
+            mode: Cleaning mode (keep-recent, older-than, all)
+            count: Number of runs to keep or age threshold in days
+            
+        Returns:
+            Result message with information about the cleanup operation
+        """
+        base_dir = os.getcwd()
+        runs_dir = os.path.join(base_dir, "runs")
+        
+        # Check if runs folder exists
+        if not os.path.exists(runs_dir) or not os.path.isdir(runs_dir):
+            return "❌ No runs folder found at path: " + runs_dir
+        
+        # Get list of run folders
+        run_dirs = []
+        for entry in os.listdir(runs_dir):
+            full_path = os.path.join(runs_dir, entry)
+            if os.path.isdir(full_path):
+                # Get directory creation time
+                creation_time = os.path.getctime(full_path)
+                # Store tuple of (directory path, creation time)
+                run_dirs.append((full_path, creation_time, entry))
+        
+        if not run_dirs:
+            return "✅ Runs folder is already empty"
+        
+        # Initial message with total run count
+        total_runs = len(run_dirs)
+        msg = f"🧹 Found {total_runs} SFC run{'s' if total_runs != 1 else ''} in {runs_dir}\n\n"
+        
+        # Sort run directories by creation time (newest first)
+        run_dirs.sort(key=lambda x: x[1], reverse=True)
+        
+        # Identify directories to delete based on the selected mode
+        dirs_to_delete = []
+        
+        if mode == "all":
+            # Confirm with a warning message since this is destructive
+            msg += "⚠️ WARNING: 'all' mode will delete ALL run directories!\n\n"
+            dirs_to_delete = run_dirs.copy()
+            
+        elif mode == "keep-recent":
+            # Keep the N most recent runs, delete the rest
+            if count <= 0:
+                return "❌ Invalid count: must be greater than 0 for 'keep-recent' mode"
+            
+            # If we have more directories than the count, delete the older ones
+            if len(run_dirs) > count:
+                dirs_to_delete = run_dirs[count:]
+                msg += f"Mode: keep-recent (keeping {count} most recent runs)\n\n"
+            else:
+                msg += f"✅ There are only {len(run_dirs)} runs, which is <= {count} to keep. No cleanup needed.\n"
+                return msg
+                
+        elif mode == "older-than":
+            # Delete runs older than N days
+            if count <= 0:
+                return "❌ Invalid count: must be greater than 0 for 'older-than' mode"
+                
+            # Calculate the cutoff time (N days ago)
+            cutoff_time = time.time() - (count * 24 * 60 * 60)
+            
+            # Find directories older than the cutoff
+            dirs_to_delete = [dir_info for dir_info in run_dirs if dir_info[1] < cutoff_time]
+            msg += f"Mode: older-than (deleting runs older than {count} days)\n\n"
+            
+        else:
+            return f"❌ Invalid mode: {mode}. Must be one of: 'keep-recent', 'older-than', 'all'"
+        
+        # Check if any of the directories to delete is the current run
+        if self.current_config_name:
+            current_run_path = os.path.join(runs_dir, self.current_config_name)
+            dirs_to_delete = [(path, ctime, name) for path, ctime, name in dirs_to_delete 
+                             if path != current_run_path]
+            
+        # Skip the directory with the last config if it exists
+        if self.last_config_name and self.last_config_name != self.current_config_name:
+            last_config_path = os.path.join(runs_dir, self.last_config_name)
+            # Remove from dirs_to_delete if it's there
+            dirs_to_delete = [(path, ctime, name) for path, ctime, name in dirs_to_delete 
+                             if path != last_config_path]
+        
+        # If no directories to delete
+        if not dirs_to_delete:
+            if mode == "all":
+                msg += "⚠️ Cannot delete active or last run configurations. No other runs found.\n"
+            else:
+                msg += "✅ No directories to delete based on the criteria.\n"
+            return msg
+            
+        # Delete the identified directories
+        deleted_count = 0
+        skipped_count = 0
+        deleted_size = 0
+        
+        # Helper function to get directory size
+        def get_dir_size(path):
+            total_size = 0
+            for dirpath, _, filenames in os.walk(path):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    if os.path.exists(fp):
+                        total_size += os.path.getsize(fp)
+            return total_size
+            
+        # Process the directories to delete
+        for dir_path, _, dir_name in dirs_to_delete:
+            try:
+                # Calculate directory size before deletion for reporting
+                dir_size = get_dir_size(dir_path)
+                
+                # Delete the directory
+                shutil.rmtree(dir_path)
+                
+                deleted_count += 1
+                deleted_size += dir_size
+                
+            except Exception as e:
+                print(f"Error deleting {dir_path}: {str(e)}")
+                skipped_count += 1
+        
+        # Format the deleted size for display
+        if deleted_size < 1024:
+            size_str = f"{deleted_size} bytes"
+        elif deleted_size < 1024 * 1024:
+            size_str = f"{deleted_size / 1024:.2f} KB"
+        elif deleted_size < 1024 * 1024 * 1024:
+            size_str = f"{deleted_size / (1024 * 1024):.2f} MB"
+        else:
+            size_str = f"{deleted_size / (1024 * 1024 * 1024):.2f} GB"
+        
+        # Final message
+        msg += f"✅ Cleanup completed:\n"
+        msg += f"• Deleted: {deleted_count} run{'s' if deleted_count != 1 else ''}\n"
+        msg += f"• Freed up: {size_str}\n"
+        
+        if skipped_count > 0:
+            msg += f"• Skipped: {skipped_count} run{'s' if skipped_count != 1 else ''} (could not delete)\n"
+        
+        remaining = total_runs - deleted_count
+        msg += f"• Remaining: {remaining} run{'s' if remaining != 1 else ''}\n"
+        
+        return msg
+
+    def _tail_logs(self, lines: int = 20, follow: bool = False) -> str:
+        """Return the most recent log entries, optionally following in real-time
+        
+        Args:
+            lines: Number of recent log lines to show
+            follow: If True, continuously display new log lines in real-time (press Ctrl+C to exit)
+        """
+        # Check if there's an active SFC configuration running
+        if not self.current_config_name:
+            return "❌ No SFC configuration is currently running"
+        
+        # Try to find the log file path
+        base_dir = os.getcwd()
+        runs_dir = os.path.join(base_dir, "runs")
+        test_dir = os.path.join(runs_dir, self.current_config_name)
+        log_dir = os.path.join(test_dir, "logs")
+        log_file_path = os.path.join(log_dir, "sfc.log")
+        
+        if not os.path.exists(log_file_path):
+            return f"❌ Log file not found: {log_file_path}"
+        
+        # Handle follow mode for real-time log viewing
+        if follow:
+            print("\n" + "=" * 80)
+            print(f"📜 FOLLOW MODE: Showing real-time logs for {self.current_config_name}")
+            print(f"⚠️  TO EXIT: Type 'q' and press Enter")
+            print("=" * 80 + "\n")
+            
+            # Use a simpler approach that doesn't rely on KeyboardInterrupt
+            # First, display the last N lines
+            try:
+                with open(log_file_path, 'r') as file:
+                    # Read the last N lines
+                    all_lines = file.readlines()
+                    last_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                    
+                    # Print the initial lines
+                    for line in last_lines:
+                        print(line.rstrip())
+                
+                # Now enter follow mode with a better exit mechanism
+                import select
+                import sys
+                
+                # Set up non-blocking input checking
+                print("\nMonitoring log file... (Type 'q' + Enter to exit)")
+                
+                # Open the file for continuous reading
+                with open(log_file_path, 'r') as file:
+                    # Go to the end of the file
+                    file.seek(0, 2)
+                    
+                    # Keep reading new lines as they're added with an exit option
+                    while True:
+                        # Check if there's user input without blocking
+                        if select.select([sys.stdin], [], [], 0)[0]:
+                            user_input = sys.stdin.readline().strip()
+                            if user_input.lower() == 'q':
+                                print("\n" + "=" * 80)
+                                print("Exiting log follow mode. Returning to command mode.")
+                                print("=" * 80 + "\n")
+                                return "✅ Stopped following logs."
+                        
+                        # Check for new log content
+                        line = file.readline()
+                        if line:
+                            print(line.rstrip())
+                        else:
+                            # No new lines, wait a bit before checking again
+                            time.sleep(0.1)
+            
+            except Exception as e:
+                return f"❌ Error following log file: {str(e)}"
+        
+        # Standard non-follow mode: Get log entries from the buffer
+        log_entries = []
+        buffer_size = self.log_buffer.qsize()
+        
+        # Try to get requested number of lines from buffer first
+        for _ in range(min(lines, buffer_size)):
+            try:
+                log_entries.append(self.log_buffer.get_nowait())
+                self.log_buffer.task_done()
+            except queue.Empty:
+                break
+        
+        # If buffer doesn't have enough entries, read from the file directly
+        if len(log_entries) < lines:
+            try:
+                with open(log_file_path, 'r') as file:
+                    all_lines = file.readlines()
+                    # Get the last N lines that weren't already in the buffer
+                    remaining_lines = lines - len(log_entries)
+                    file_lines = [line.rstrip() for line in all_lines[-remaining_lines:]]
+                    log_entries = file_lines + log_entries  # Prepend file lines
+            except Exception as e:
+                return f"❌ Error reading log file: {str(e)}"
+        
+        # Limit to the requested number of lines
+        log_entries = log_entries[-lines:]
+        
+        # Format the output
+        if log_entries:
+            return f"📜 Latest log entries for {self.current_config_name}:\n\n```\n" + "\n".join(log_entries) + "\n```\n\nUse `tail_logs(50)` to see more lines or `tail_logs(lines=20, follow=True)` to follow logs in real-time."
+        else:
+            return f"⚠️ No log entries found for {self.current_config_name}"
+
     def boot(self):
         """Boot sequence for SFC Wizard"""
         print("=" * 60)
@@ -2147,8 +2561,6 @@ You can check the logs in the test directory for status information.
 
 def main():
     """Main function to run the SFC Wizard"""
-    print("Starting SFC Wizard Agent...")
-
     try:
         wizard = SFCWizardAgent()
         wizard.run()
