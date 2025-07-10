@@ -925,6 +925,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
+    { name = "jmespath" },
     { name = "python-dotenv" },
     { name = "strands-agents" },
     { name = "strands-agents-tools" },
@@ -933,6 +934,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "black" },
+    { name = "jmespath" },
     { name = "python-dotenv" },
     { name = "strands-agents" },
     { name = "strands-agents-tools" },

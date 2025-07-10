@@ -22,6 +22,7 @@ from src.tools.file_operations import SFCFileOperations
 from src.tools.log_operations import SFCLogOperations
 from src.tools.folder_operations import SFCFolderOperations
 from src.tools.sfc_runner import SFCRunner
+from src.tools.sfc_visualization import visualize_file_target_data
 
 # Load environment variables
 load_dotenv()
@@ -244,6 +245,22 @@ class SFCWizardAgent:
                 current_config_name=self.current_config_name,
                 last_config_name=self.last_config_name,
             )
+            
+        @tool
+        def visualize_data(minutes: int = 10, jmespath_expr: str = "value") -> str:
+            """Visualize data from the currently running SFC configuration with FILE-TARGET enabled.
+            
+            Shows the data from the last N minutes using an ncurses-based visualizer.
+            
+            Args:
+                minutes: Number of minutes of data to visualize (default: 10)
+                jmespath_expr: JMESPath expression to extract values from the data (e.g., "sources.SinusSource.values.sinus.value")
+            """
+            return visualize_file_target_data(
+                config_name=self.current_config_name,
+                minutes=minutes,
+                jmespath_expr=jmespath_expr
+            )
 
         # Create agent with SFC-specific tools
         try:
@@ -264,6 +281,7 @@ class SFCWizardAgent:
                     tail_logs,
                     clean_runs_folder,
                     confirm_clean_runs_folder,
+                    visualize_data,
                 ],
             )
         except Exception:
@@ -282,6 +300,7 @@ class SFCWizardAgent:
                     tail_logs,
                     clean_runs_folder,
                     confirm_clean_runs_folder,
+                    visualize_data,
                 ]
             )
 
@@ -361,6 +380,7 @@ class SFCWizardAgent:
         print("• 🧪 Test configurations against environments")
         print("• 🏗️  Define required deployment environments")
         print("• 📚 Explain SFC concepts and components")
+        print("• 📊 Visualize data from configurations with FILE-TARGET")
         print()
         print("📋 Supported Protocols:")
         protocol_list = list(self.sfc_knowledge["supported_protocols"].keys())

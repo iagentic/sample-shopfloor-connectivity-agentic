@@ -26,12 +26,28 @@
       "ProtocolAdapter": "SIMULATOR",
       "Description": "Sinus simulator source configuration",
       "Channels": {
+        "counter": {
+          "Simulation": {
+            "SimulationType": "Counter",
+            "DataType": "Float",
+            "Min": 0,
+            "Max": 10
+          }
+        },
         "sinus": {
           "Simulation": {
             "SimulationType": "Sinus",
-            "DataType": "Byte",
+            "DataType": "Float",
             "Min": 0,
-            "Max": 100
+            "Max": 10
+          }
+        },
+        "triangle": {
+          "Simulation": {
+            "SimulationType": "Triangle",
+            "DataType": "Float",
+            "Min": 0,
+            "Max": 10
           }
         }
       }
