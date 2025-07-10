@@ -1,5 +1,5 @@
 .venv
-sample_sfc_agent/__pycache__/
+__pycache__
 runs/
 modules/
 .env

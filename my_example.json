@@ -1,0 +1,80 @@
+{
+  "AWSVersion": "2022-04-02",
+  "Name": "Sinus to File Configuration with Buffer Size",
+  "Description": "Configuration for Sinus simulator to File and DEBUG targets with 50ms interval and 100 buffer size",
+  "LogLevel": "Trace",
+  "Schedules": [
+    {
+      "Name": "SinusSchedule",
+      "Interval": 50,
+      "Active": true,
+      "TimestampLevel": "Both",
+      "Sources": {
+        "SIMULATOR-SOURCE": [
+          "*"
+        ]
+      },
+      "Targets": [
+        "#DEBUGTarget",
+        "FileTarget"
+      ]
+    }
+  ],
+  "Sources": {
+    "SIMULATOR-SOURCE": {
+      "Name": "SinusSource",
+      "ProtocolAdapter": "SIMULATOR",
+      "Description": "Sinus simulator source configuration",
+      "Channels": {
+        "sinus": {
+          "Simulation": {
+            "SimulationType": "Sinus",
+            "DataType": "Byte",
+            "Min": 0,
+            "Max": 100
+          }
+        }
+      }
+    }
+  },
+  "Targets": {
+    "DEBUGTarget": {
+      "Active": true,
+      "TargetType": "DEBUG-TARGET"
+    },
+    "FileTarget": {
+      "Active": true,
+      "TargetType": "FILE-TARGET",
+      "BufferSize": 100,
+      "Extension": ".json",
+      "Directory": "data"
+    }
+  },
+  "TargetTypes": {
+    "DEBUG-TARGET": {
+      "JarFiles": [
+        "${MODULES_DIR}/debug-target/lib"
+      ],
+      "FactoryClassName": "com.amazonaws.sfc.debugtarget.DebugTargetWriter"
+    },
+    "FILE-TARGET": {
+      "JarFiles": [
+        "${MODULES_DIR}/file-target/lib"
+      ],
+      "FactoryClassName": "com.amazonaws.sfc.filetarget.FileTargetWriter"
+    }
+  },
+  "AdapterTypes": {
+    "SIMULATOR": {
+      "JarFiles": [
+        "${MODULES_DIR}/simulator/lib"
+      ],
+      "FactoryClassName": "com.amazonaws.sfc.simulator.SimulatorAdapter"
+    }
+  },
+  "ProtocolAdapters": {
+    "SIMULATOR": {
+      "AdapterType": "SIMULATOR"
+    }
+  }
+}

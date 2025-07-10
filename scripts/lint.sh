@@ -17,4 +17,4 @@ fi
 source .venv/bin/activate
 
 # Run black formatter on all Python code
-black sample_sfc_agent/
+black src/agents/

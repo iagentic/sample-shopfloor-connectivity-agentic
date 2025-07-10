@@ -16,4 +16,4 @@ if [ ! -f "uv.lock" ]; then
 fi
 
 # Run the agent using uv
-uv run python -m sample_sfc_agent.sfc_wizard_agent
+uv run python -m src.agents.sfc_wizard_agent

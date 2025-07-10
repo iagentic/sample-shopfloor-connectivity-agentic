@@ -20,10 +20,10 @@ dependencies = [
 ]
 
 [project.scripts]
-restricted-agent = "sample_sfc_agent.restricted_agent:main"
+restricted-agent = "src.agents.sfc_wizard_agent:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["sample_sfc_agent"]
+packages = ["src"]
 
 [project.optional-dependencies]
 dev = []

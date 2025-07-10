@@ -5,6 +5,6 @@
 echo "Running tests for the SFC wizard agent..."
 
 # Run the agent using uv
-uv run python -m sample_sfc_agent.sfc_wizard_agent
+uv run python -m src.agents.sfc_wizard_agent
 
 echo "Test complete!"
