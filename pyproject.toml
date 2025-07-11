@@ -24,7 +24,6 @@ dependencies = [
 
 [project.scripts]
 agent = "src.agents.sfc_wizard_agent:main"
-mcp = "src.mcp.sfc-spec-server.server"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
