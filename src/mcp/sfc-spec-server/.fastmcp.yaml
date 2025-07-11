@@ -1,0 +1,7 @@
+# SFC Documentation MCP Server Configuration
+servers:
+  - name: sfc-docs-server
+    command: python server.py
+    cwd: src/mcp/sfc-spec-server
+    description: Provides access to SFC documentation and repository management
+    auto_restart: true

@@ -18,10 +18,13 @@ dependencies = [
     "python-dotenv",
     "black",
     "jmespath",
+    "fastmcp>=2.10.4",
+    "markdown>=3.8.2",
 ]
 
 [project.scripts]
-restricted-agent = "src.agents.sfc_wizard_agent:main"
+agent = "src.agents.sfc_wizard_agent:main"
+mcp = "src.mcp.sfc-spec-server.server"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
