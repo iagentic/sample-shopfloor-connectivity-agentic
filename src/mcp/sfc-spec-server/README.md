@@ -1,102 +1,152 @@
 # SFC Documentation MCP Server
 
-This is a Model Context Protocol (MCP) server that provides structured information and tools for interacting with the [AWS Shopfloor Connectivity (SFC)](https://github.com/aws-samples/shopfloor-connectivity) GitHub repository.
+This Model Context Protocol (MCP) server provides tools to interact with the Shopfloor Connectivity (SFC) GitHub repository documentation and functionality. It allows AI assistants to access SFC documentation, extract examples, search for specific information, and validate configurations.
 
 ## Features
 
-The server provides:
+The server provides the following tools:
 
-1. **Repository Management**:
-   - Tool to update the repository using `git pull`
+### Documentation Tools
 
-2. **Documentation Access**:
-   - Access to markdown documentation from the SFC repository's docs folders:
-     - Core documentation (`docs/core`)
-     - Adapter documentation (`docs/adapters`)
-     - Target documentation (`docs/targets`)
+- **update_repo**: Updates the SFC repository by pulling the latest changes
+- **list_core_docs**, **list_adapter_docs**, **list_target_docs**: Lists documents in respective directories
+- **get_core_doc**, **get_adapter_doc**, **get_target_doc**: Retrieves specific documents
+- **query_docs**: Searches for documents across different types with filtering options
+- **search_doc_content**: Searches for text patterns within documents
+- **extract_json_examples**: Extracts JSON examples from documents matching flexible patterns (supports wildcards)
 
-## Tools
+### Configuration Tools
 
-### `update_repo`
+- **get_sfc_config_examples**: Retrieves SFC configuration examples with flexible name pattern matching
+- **validate_sfc_config**: Performs basic validation of an SFC configuration
 
-Updates the local SFC repository by running `git pull` to get the latest changes.
+## Installation
 
-**Usage:**
-```python
-use_mcp_tool(
-    server_name="sfc-docs-server",
-    tool_name="update_repo",
-    arguments={}
-)
-```
+1. Ensure you have Python 3.8+ installed
+2. Install dependencies:
+   ```
+   pip install fastmcp requests
+   ```
+3. Clone the SFC repository into the `sfc-repo` directory:
+   ```
+   git clone https://github.com/aws-samples/shopfloor-connectivity sfc-repo
+   ```
 
-## Resources
+## Usage
 
-### Core Documentation
+### Running the Server
 
-- List all core documentation files:
-  ```python
-  access_mcp_resource(
-      server_name="sfc-docs-server",
-      uri="core_docs"
-  )
-  ```
-
-- Get specific core documentation file:
-  ```python
-  access_mcp_resource(
-      server_name="sfc-docs-server",
-      uri="core_docs/document_name"  # Replace with actual document name without .md extension
-  )
-  ```
-
-### Adapter Documentation
-
-- List all adapter documentation files:
-  ```python
-  access_mcp_resource(
-      server_name="sfc-docs-server",
-      uri="adapter_docs"
-  )
-  ```
-
-- Get specific adapter documentation file:
-  ```python
-  access_mcp_resource(
-      server_name="sfc-docs-server",
-      uri="adapter_docs/document_name"  # Replace with actual document name without .md extension
-  )
-  ```
-
-### Target Documentation
-
-- List all target documentation files:
-  ```python
-  access_mcp_resource(
-      server_name="sfc-docs-server",
-      uri="target_docs"
-  )
-  ```
-
-- Get specific target documentation file:
-  ```python
-  access_mcp_resource(
-      server_name="sfc-docs-server",
-      uri="target_docs/document_name"  # Replace with actual document name without .md extension
-  )
-  ```
-
-## Installation and Setup
-
-1. The server requires the SFC repository to be cloned at `src/mcp/sfc-repo`.
-2. Ensure that `fastmcp` version 2.10.0 or higher is installed.
-
-## Starting the Server
-
-To start the server, run:
+Start the MCP server:
 
 ```bash
-python src/mcp/server.py
+python server.py
 ```
 
-The server will start and become available for MCP tool and resource operations.
+The server will run on `http://127.0.0.1:8000/sfc` by default.
+
+### Testing the Server
+
+Run the test program to verify server functionality:
+
+```bash
+python test_server.py
+```
+
+This will test all available tools and report results.
+
+## Tool Examples
+
+### Retrieving SFC Documentation
+
+```json
+{
+  "server_name": "sfc-docs-server",
+  "tool_name": "get_core_doc",
+  "arguments": {
+    "doc_name": "architecture"
+  }
+}
+```
+
+### Searching Documentation
+
+```json
+{
+  "server_name": "sfc-docs-server",
+  "tool_name": "search_doc_content",
+  "arguments": {
+    "search_text": "configuration",
+    "doc_type": "all",
+    "case_sensitive": false
+  }
+}
+```
+
+### Validating a Configuration
+
+```json
+{
+  "server_name": "sfc-docs-server",
+  "tool_name": "validate_sfc_config",
+  "arguments": {
+    "config": {
+      "name": "MyAdapter",
+      "adapterType": "OPCUA",
+      "sources": [
+        {
+          "name": "OpcuaSource1",
+          "endpoint": "opc.tcp://localhost:4840/opcua/server",
+          "topics": [
+            {"name": "Topic1", "sourcePath": "ns=2;i=1", "dataType": "Int32"}
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+### Extracting JSON Examples
+
+```json
+{
+  "server_name": "sfc-docs-server",
+  "tool_name": "extract_json_examples",
+  "arguments": {
+    "doc_type": "core",
+    "doc_name": "config*"
+  }
+}
+```
+
+The `doc_name` parameter supports flexible pattern matching:
+- Exact match: `"configuration"` matches only "configuration.md"
+- Prefix match: `"config*"` matches files starting with "config"
+- Suffix match: `"*config"` matches files ending with "config"
+- Contains match: `"*config*"` matches any file containing "config"
+
+### Retrieving Configuration Examples
+
+```json
+{
+  "server_name": "sfc-docs-server",
+  "tool_name": "get_sfc_config_examples",
+  "arguments": {
+    "component_type": "adapter",
+    "name_pattern": "*OPCUA*"
+  }
+}
+```
+
+The `name_pattern` parameter supports the same wildcard matching as the `extract_json_examples` tool, allowing you to filter configuration examples by component name.
+
+## Integration with AI Assistants
+
+This server is designed to be used with AI assistants that support the Model Context Protocol (MCP). When connected, the assistant can use these tools to:
+
+1. Access and search SFC documentation
+2. Extract configuration examples and JSON snippets
+3. Validate user-provided configurations
+4. Provide relevant guidance about SFC components
+
+By leveraging this MCP server, assistants can provide more accurate and context-aware help with SFC-related tasks without requiring the full documentation to be included in their context window.
