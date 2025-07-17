@@ -30,12 +30,32 @@ load_dotenv()
 try:
     from strands import Agent, tool
     from strands.models import BedrockModel
+    from mcp import stdio_client, StdioServerParameters
+    from strands.tools.mcp import MCPClient
 except ImportError:
     print(
         "Strands SDK not found. Please run 'scripts/init.sh' to install dependencies."
     )
     sys.exit(1)
 
+stdio_mcp_client = MCPClient(lambda: stdio_client(
+            StdioServerParameters(
+                command="uv", 
+                args=["run", "python", "-m", "src.mcp.sfc-spec-server.server"]
+            )
+        ))
+
+class color:
+   PURPLE = '\033[95m'
+   CYAN = '\033[96m'
+   DARKCYAN = '\033[36m'
+   BLUE = '\033[94m'
+   GREEN = '\033[92m'
+   YELLOW = '\033[93m'
+   RED = '\033[91m'
+   BOLD = '\033[1m'
+   UNDERLINE = '\033[4m'
+   END = '\033[0m'
 
 class SFCWizardAgent:
     """
@@ -53,6 +73,7 @@ class SFCWizardAgent:
         self.active_processes = []
 
         # Initialize the Strands agent with SFC-specific tools
+        
         self.agent = self._create_agent()
 
     # _load_sfc_knowledge method has been externalized to src/tools/sfc_knowledge.py
@@ -264,44 +285,35 @@ class SFCWizardAgent:
 
         # Create agent with SFC-specific tools
         try:
-            model = BedrockModel()
-            agent = Agent(
-                model=model,
-                tools=[
-                    validate_sfc_config,
-                    create_sfc_config_template,
-                    diagnose_sfc_issue,
-                    suggest_sfc_optimization,
-                    generate_environment_specs,
-                    explain_sfc_concept,
-                    read_config_from_file,
-                    save_config_to_file,
-                    run_sfc_config_locally,
-                    what_is_sfc,
-                    tail_logs,
-                    clean_runs_folder,
-                    confirm_clean_runs_folder,
-                    visualize_data,
-                ],
+            bedrock_model = BedrockModel(
+                model_id="eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
             )
-        except Exception:
-            agent = Agent(
-                tools=[
+            agent_internal_tools=[
                     validate_sfc_config,
                     create_sfc_config_template,
-                    diagnose_sfc_issue,
-                    suggest_sfc_optimization,
-                    generate_environment_specs,
-                    explain_sfc_concept,
+                    #diagnose_sfc_issue,
+                    #suggest_sfc_optimization,
+                    #generate_environment_specs,
+                    #explain_sfc_concept,
                     read_config_from_file,
                     save_config_to_file,
                     run_sfc_config_locally,
-                    what_is_sfc,
+                    #what_is_sfc,
                     tail_logs,
                     clean_runs_folder,
                     confirm_clean_runs_folder,
                     visualize_data,
                 ]
+            mcp_tools = stdio_mcp_client.list_tools_sync()
+            #print(mcp_tools)
+            agent = Agent(
+                model=bedrock_model,
+                tools=agent_internal_tools+mcp_tools
+            )
+        except Exception as e:
+            print(e)
+            agent = Agent(
+                tools=agent_internal_tools
             )
 
         return agent
@@ -366,9 +378,9 @@ class SFCWizardAgent:
 
     def boot(self):
         """Boot sequence for SFC Wizard"""
-        print("=" * 60)
-        print("🏭 AWS SHOPFLOOR CONNECTIVITY (SFC) WIZARD")
-        print("=" * 60)
+        print("=" * 43)
+        print(color.BOLD+color.BLUE+"🏭 AWS SHOP FLOOR CONNECTIVITY (SFC) WIZARD"+color.END)
+        print("=" * 43)
         print("Specialized assistant for industrial data connectivity to AWS")
         print()
         print("🎯 I can help you with:")
@@ -393,7 +405,6 @@ class SFCWizardAgent:
             print("   " + " | ".join(aws_targets[i : i + 3]))
         print()
         print("Type 'exit' or 'quit' to end the session.")
-        print("=" * 60)
         print()
 
     def _cleanup_processes(self):
@@ -423,7 +434,7 @@ class SFCWizardAgent:
         try:
             while True:
                 try:
-                    user_input = input("SFC Wizard: ").strip()
+                    user_input = input(color.BOLD+color.BLUE+"SFC Wizard: "+color.END).strip()
 
                     if user_input.lower() in ["exit", "quit", "bye"]:
                         print("\n🏭 Thank you for using the SFC Wizard!")
@@ -436,7 +447,9 @@ class SFCWizardAgent:
                     # Process with Strands agent
                     try:
                         response = self.agent(user_input)
-                        print(f"\n{response}\n")
+                        print(f"\n")
+                        # Don't print response here as stdio_mcp_client already prints it
+                        # print(f"\n{response}\n")
                     except Exception as e:
                         print(f"\n❌ Error processing request: {str(e)}")
                         print(
@@ -456,8 +469,9 @@ class SFCWizardAgent:
 def main():
     """Main function to run the SFC Wizard"""
     try:
-        wizard = SFCWizardAgent()
-        wizard.run()
+        with stdio_mcp_client:
+            wizard = SFCWizardAgent()
+            wizard.run()
     except Exception as e:
         print(f"Error starting SFC Wizard: {str(e)}")
         print(

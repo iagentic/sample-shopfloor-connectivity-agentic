@@ -591,7 +591,7 @@ def search_doc_content_tool(search_text: str, doc_type: str = "all", case_sensit
     # Determine which directories to search
     directories = []
     if doc_type.lower() == "all":
-        directories = ["core", "adapters", "targets"]
+        directories = ["", "core", "adapters", "targets"]
     elif doc_type.lower() in ["core", "adapter", "target"]:
         # Map singular to plural form if needed
         dir_map = {"core": "core", "adapter": "adapters", "target": "targets"}
@@ -930,9 +930,9 @@ def validate_sfc_config_tool(config: Dict[str, Any]) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     server.run(
-        transport="http",
-        host="127.0.0.1",
-        port=8000,
-        path="/sfc",
-        log_level="debug"
+        transport="stdio",
+        # host="127.0.0.1",
+        # port=8000,
+        # path="/sfc",
+        #log_level="debug"
     )
