@@ -7,9 +7,7 @@ Provides functions for generating SFC configuration templates
 """
 
 import json
-from typing import Dict, Any, List
-
-from src.tools.sfc_knowledge import load_sfc_knowledge
+from typing import Dict, Any
 
 
 def generate_config_template(

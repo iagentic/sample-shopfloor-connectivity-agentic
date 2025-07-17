@@ -16,8 +16,8 @@ import threading
 import queue
 from logging.handlers import RotatingFileHandler
 from typing import List, Dict, Any, Optional, Tuple
-from src.tools.sfc_module_analyzer import analyze_sfc_config_for_modules
-from src.tools.log_operations import SFCLogOperations
+from tools.sfc_module_analyzer import analyze_sfc_config_for_modules
+from tools.log_operations import SFCLogOperations
 
 
 class SFCRunner:

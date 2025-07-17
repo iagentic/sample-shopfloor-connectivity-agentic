@@ -15,5 +15,5 @@ if [ ! -f "uv.lock" ]; then
     ./scripts/init.sh
 fi
 
-# Run the agent using uv
-uv run python -m src.agents.sfc_wizard_agent
+# Run the MCP server using uv
+uv run python server.py
