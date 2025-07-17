@@ -16,4 +16,4 @@ if [ ! -f "uv.lock" ]; then
 fi
 
 # Run the MCP server using uv
-uv run python server.py
+uv run python -m sfc_spec.server

@@ -10,7 +10,11 @@ from typing import Dict, Any
 
 
 def generate_environment_specs(
-    protocol: str, devices: str, data_volume: str, targets: str, sfc_knowledge: Dict[str, Any]
+    protocol: str,
+    devices: str,
+    data_volume: str,
+    targets: str,
+    sfc_knowledge: Dict[str, Any],
 ) -> str:
     """Generate environment specifications needed for SFC deployment.
 
@@ -55,9 +59,7 @@ def generate_environment_specs(
         )
 
     # Network requirements
-    protocol_info = sfc_knowledge["supported_protocols"].get(
-        protocol.upper(), {}
-    )
+    protocol_info = sfc_knowledge["supported_protocols"].get(protocol.upper(), {})
     default_port = protocol_info.get("port_default")
 
     specs.extend(

@@ -16,8 +16,8 @@ import threading
 import queue
 from logging.handlers import RotatingFileHandler
 from typing import List, Dict, Any, Optional, Tuple
-from tools.sfc_module_analyzer import analyze_sfc_config_for_modules
-from tools.log_operations import SFCLogOperations
+from .sfc_module_analyzer import analyze_sfc_config_for_modules
+from .log_operations import SFCLogOperations
 
 
 class SFCRunner:
@@ -33,7 +33,7 @@ class SFCRunner:
         log_buffer: Optional[queue.Queue] = None,
     ) -> Tuple[str, str, str, str, List, Optional[threading.Thread]]:
         """Run SFC configuration locally in a test environment
-        
+
         Args:
             config_json: SFC configuration to run
             config_name: Optional name for the configuration and test folder
@@ -41,7 +41,7 @@ class SFCRunner:
             log_tail_thread: Current log tail thread reference
             log_tail_stop_event: Event to signal log tail thread to stop
             log_buffer: Queue for log messages
-            
+
         Returns:
             Tuple containing:
             - Result message (str)
@@ -53,7 +53,7 @@ class SFCRunner:
         """
         if active_processes is None:
             active_processes = []
-        
+
         try:
             # First, terminate any existing SFC processes
             if active_processes:
@@ -110,7 +110,14 @@ class SFCRunner:
             )
             if response.status_code != 200:
                 result = f"❌ Failed to fetch SFC release information: HTTP {response.status_code}"
-                return result, config_name, config_name, config_filename, active_processes, log_tail_thread
+                return (
+                    result,
+                    config_name,
+                    config_name,
+                    config_filename,
+                    active_processes,
+                    log_tail_thread,
+                )
 
             release_data = response.json()
             sfc_version = release_data["tag_name"]
@@ -131,7 +138,14 @@ class SFCRunner:
                     tarball_response = requests.get(sfc_main_url, stream=True)
                     if tarball_response.status_code != 200:
                         result = f"❌ Failed to download SFC main binary: HTTP {tarball_response.status_code}"
-                        return result, config_name, config_name, config_filename, active_processes, log_tail_thread
+                        return (
+                            result,
+                            config_name,
+                            config_name,
+                            config_filename,
+                            active_processes,
+                            log_tail_thread,
+                        )
 
                     tarball_file_path = os.path.join(
                         modules_dir, f"{sfc_main_module}.tar.gz"
@@ -169,8 +183,17 @@ class SFCRunner:
                             # No common prefix, extract normally
                             tar.extractall(path=module_target_dir)
                 except Exception as e:
-                    result = f"❌ Error downloading/extracting SFC main binary: {str(e)}"
-                    return result, config_name, config_name, config_filename, active_processes, log_tail_thread
+                    result = (
+                        f"❌ Error downloading/extracting SFC main binary: {str(e)}"
+                    )
+                    return (
+                        result,
+                        config_name,
+                        config_name,
+                        config_filename,
+                        active_processes,
+                        log_tail_thread,
+                    )
             else:
                 print(f"✅ Using cached SFC main binary from {module_target_dir}")
 
@@ -259,8 +282,17 @@ class SFCRunner:
                     break
 
             if not sfc_executable:
-                result = f"❌ Could not find SFC main executable in the modules directory"
-                return result, config_name, config_name, config_filename, active_processes, log_tail_thread
+                result = (
+                    f"❌ Could not find SFC main executable in the modules directory"
+                )
+                return (
+                    result,
+                    config_name,
+                    config_name,
+                    config_filename,
+                    active_processes,
+                    log_tail_thread,
+                )
 
             # Run the configuration with SFC
             print(f"▶️ Running SFC with configuration...")
@@ -270,48 +302,48 @@ class SFCRunner:
             env = os.environ.copy()
             env["SFC_DEPLOYMENT_DIR"] = os.path.abspath(modules_dir)
             env["MODULES_DIR"] = os.path.abspath(modules_dir)
-            
+
             # Set up log file with rotation
             log_dir = os.path.join(test_dir, "logs")
             os.makedirs(log_dir, exist_ok=True)
             log_file_path = os.path.join(log_dir, "sfc.log")
-            
+
             # Create a rotating file handler
             log_handler = RotatingFileHandler(
                 log_file_path,
                 maxBytes=10 * 1024 * 1024,  # 10 MB
                 backupCount=5,
-                mode='a'
+                mode="a",
             )
-            
+
             # Create logger
             logger = logging.getLogger(f"sfc_{config_name}")
             logger.setLevel(logging.INFO)
             logger.addHandler(log_handler)
-            
+
             # Create log file and open it for the process output
-            log_file = open(log_file_path, 'a')
-            
+            log_file = open(log_file_path, "a")
+
             # Run in background with environment variables and redirect output to log file
             process = subprocess.Popen(
-                command, 
-                cwd=test_dir, 
-                env=env, 
+                command,
+                cwd=test_dir,
+                env=env,
                 stdout=log_file,
                 stderr=log_file,
                 bufsize=1,  # Line buffered
-                universal_newlines=True
+                universal_newlines=True,
             )
 
             # Add to active processes for cleanup when wizard exits
             active_processes.append(process)
-            
+
             # Start log tail thread if it's not already running
             if log_tail_stop_event is None:
                 log_tail_stop_event = threading.Event()
             if log_buffer is None:
                 log_buffer = queue.Queue(maxsize=100)
-                
+
             log_tail_thread = SFCLogOperations.start_log_tail_thread(
                 log_file_path, log_tail_thread, log_tail_stop_event, log_buffer
             )
@@ -336,14 +368,42 @@ SFC is running with your configuration in a new process.
 You can check the logs in the test directory for status information.
 """
 
-            return result, config_name, config_name, config_filename, active_processes, log_tail_thread
+            return (
+                result,
+                config_name,
+                config_name,
+                config_filename,
+                active_processes,
+                log_tail_thread,
+            )
 
         except json.JSONDecodeError:
             result = "❌ Invalid JSON configuration provided"
-            return result, config_name, config_name, "", active_processes, log_tail_thread
+            return (
+                result,
+                config_name,
+                config_name,
+                "",
+                active_processes,
+                log_tail_thread,
+            )
         except requests.RequestException as e:
             result = f"❌ Network error while fetching SFC: {str(e)}"
-            return result, config_name, config_name, "", active_processes, log_tail_thread
+            return (
+                result,
+                config_name,
+                config_name,
+                "",
+                active_processes,
+                log_tail_thread,
+            )
         except Exception as e:
             result = f"❌ Error running SFC configuration: {str(e)}"
-            return result, config_name, config_name, "", active_processes, log_tail_thread
+            return (
+                result,
+                config_name,
+                config_name,
+                "",
+                active_processes,
+                log_tail_thread,
+            )

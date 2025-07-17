@@ -11,10 +11,10 @@ from typing import List, Dict, Any
 
 def analyze_sfc_config_for_modules(config: Dict[str, Any]) -> List[str]:
     """Analyze SFC config to determine required modules
-    
+
     Args:
         config: SFC configuration dictionary
-        
+
     Returns:
         List of required module names
     """

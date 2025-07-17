@@ -23,9 +23,9 @@ cd src/agents/sfc_wizard_agent
 ./scripts/run.sh
 ```
 
-### 📚 [SFC Spec Server](src/mcp/sfc-spec-server/README.md) 
+### 📚 [SFC Spec Server](src/mcp-servers/sfc-spec-server/README.md) 
 
-A Model Context Protocol (MCP) server that provides SFC specifications, documentation, and tools. Features include:
+A Model Context Protocol (MCP) server that provides SFC specifications, documentation, and sfc_wizard.tools. Features include:
 
 - **Specification Access**: Complete SFC configuration schemas and examples
 - **Documentation Tools**: Search and retrieve SFC documentation  
@@ -33,7 +33,7 @@ A Model Context Protocol (MCP) server that provides SFC specifications, document
 
 **Quick Start:**
 ```bash
-cd src/mcp/sfc-spec-server  
+cd src/mcp-servers/sfc-spec-server  
 ./scripts/run.sh
 ```
 
@@ -62,7 +62,7 @@ uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=
 
 **SFC Spec MCP Server:**
 ```bash
-uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server sfc_spec
+uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp-servers/sfc-spec-server sfc_spec
 ```
 
 #### Option 2: Local Development
@@ -83,7 +83,7 @@ uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=
 Each component can be configured with environment variables. See the individual component READMEs for specific configuration options:
 
 - [SFC Wizard Agent Configuration](src/agents/sfc_wizard_agent/README.md#configuration)
-- [SFC Spec Server Configuration](src/mcp/sfc-spec-server/README.md#configuration)
+- [SFC Spec Server Configuration](src/mcp-servers/sfc-spec-server/README.md#configuration)
 
 ## Use Cases
 
@@ -117,13 +117,13 @@ src/
 
 See individual component READMEs for development guidelines:
 - [SFC Wizard Agent Development](src/agents/sfc_wizard_agent/README.md#development)
-- [SFC Spec Server Development](src/mcp/sfc-spec-server/README.md#development)
+- [SFC Spec Server Development](src/mcp-servers/sfc-spec-server/README.md#development)
 
 ### Troubleshooting
 
 For component-specific troubleshooting, refer to:
 - [SFC Wizard Agent Troubleshooting](src/agents/sfc_wizard_agent/README.md#troubleshooting)
-- [SFC Spec Server Troubleshooting](src/mcp/sfc-spec-server/README.md#troubleshooting)
+- [SFC Spec Server Troubleshooting](src/mcp-servers/sfc-spec-server/README.md#troubleshooting)
 
 ## Security
 

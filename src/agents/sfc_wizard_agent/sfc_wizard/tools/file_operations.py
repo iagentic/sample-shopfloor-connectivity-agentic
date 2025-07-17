@@ -17,10 +17,10 @@ class SFCFileOperations:
     @staticmethod
     def read_config_from_file(filename: str) -> str:
         """Read configuration from a JSON file
-        
+
         Args:
             filename: Name of the file to read the configuration from
-            
+
         Returns:
             String result message with the loaded configuration
         """
@@ -49,11 +49,11 @@ class SFCFileOperations:
     @staticmethod
     def save_config_to_file(config_json: str, filename: str) -> str:
         """Save configuration to a JSON file
-        
+
         Args:
             config_json: SFC configuration to save
             filename: Name of the file to save the configuration to
-            
+
         Returns:
             String result message indicating success or failure
         """
