@@ -11,7 +11,7 @@ from typing import Dict, Any
 
 def load_sfc_knowledge() -> Dict[str, Any]:
     """Load SFC framework knowledge base
-    
+
     Returns:
         Dictionary containing SFC framework knowledge
     """
@@ -56,9 +56,9 @@ def load_sfc_knowledge() -> Dict[str, Any]:
             "AWS-SITEWISE": {"service": "AWS IoT SiteWise", "real_time": True},
             "AWS-S3": {"service": "Amazon S3", "real_time": False},
             "AWS-S3-TABLES": {
-                "service": "Amazon S3 Tables (S3Tables)", 
+                "service": "Amazon S3 Tables (S3Tables)",
                 "real_time": False,
-                "description": "AWS S3 Tables (also known as S3Tables, Iceberg or AWS-S3-TABLES) target adapter enables writing data to S3 in a structured format based on Apache Iceberg table format. Supports Parquet, JSON, and CSV formats with customizable partitioning, schema definition, and compression options. The Iceberg-compatible format allows for efficient data querying and analytics."
+                "description": "AWS S3 Tables (also known as S3Tables, Iceberg or AWS-S3-TABLES) target adapter enables writing data to S3 in a structured format based on Apache Iceberg table format. Supports Parquet, JSON, and CSV formats with customizable partitioning, schema definition, and compression options. The Iceberg-compatible format allows for efficient data querying and analytics.",
             },
             "AWS-KINESIS": {"service": "Amazon Kinesis", "real_time": True},
             "AWS-KINESIS-FIREHOSE": {

@@ -41,7 +41,7 @@ The server provides the following tools:
 Run the server directly from the GitHub repository without cloning:
 
 ```bash
-uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server sfc_spec
+uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp-servers/sfc-spec-server sfc_spec
 ```
 
 #### Option 2: Local Development
@@ -68,7 +68,7 @@ To use this server with an MCP client, add it to your MCP configuration file:
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server",
+        "git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp-servers/sfc-spec-server",
         "sfc_spec"
       ],
       "env": {}
@@ -86,7 +86,7 @@ To use this server with an MCP client, add it to your MCP configuration file:
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server",
+        "git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp-servers/sfc-spec-server",
         "sfc_spec"
       ]
     }

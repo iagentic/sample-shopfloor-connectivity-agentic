@@ -53,7 +53,9 @@ def generate_config_template(
     return f"✅ Generated {protocol} to {target} template:\n\n```json\n{json.dumps(template, indent=2)}\n```"
 
 
-def generate_source_template(protocol: str, sfc_knowledge: Dict[str, Any]) -> Dict[str, Any]:
+def generate_source_template(
+    protocol: str, sfc_knowledge: Dict[str, Any]
+) -> Dict[str, Any]:
     """Generate source configuration template
 
     Args:
@@ -108,7 +110,9 @@ def generate_target_types(target: str, sfc_knowledge: Dict[str, Any]) -> Dict[st
     return target_types
 
 
-def generate_adapter_types(protocol: str, sfc_knowledge: Dict[str, Any]) -> Dict[str, Any]:
+def generate_adapter_types(
+    protocol: str, sfc_knowledge: Dict[str, Any]
+) -> Dict[str, Any]:
     """Generate adapter types configuration
 
     Args:
@@ -123,7 +127,9 @@ def generate_adapter_types(protocol: str, sfc_knowledge: Dict[str, Any]) -> Dict
     return adapter_types
 
 
-def generate_protocol_adapter_config(protocol: str, sfc_knowledge: Dict[str, Any]) -> Dict[str, Any]:
+def generate_protocol_adapter_config(
+    protocol: str, sfc_knowledge: Dict[str, Any]
+) -> Dict[str, Any]:
     """Generate protocol adapter configuration
 
     Args:

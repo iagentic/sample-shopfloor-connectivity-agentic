@@ -105,7 +105,7 @@ Create a `.env` file in the agent directory with:
 # MCP Server Configuration (optional)
 MCP_SERVER_COMMAND=uv
 MCP_SERVER_ARGS=run,python
-MCP_SERVER_PATH=../../../src/mcp/sfc-spec-server/sfc_spec/server.py
+MCP_SERVER_PATH=../../../src/mcp-servers/sfc-spec-server/sfc_spec/server.py
 
 # AWS Configuration (for deployment)
 AWS_REGION=us-east-1
@@ -225,7 +225,7 @@ This project is licensed under the Apache License 2.0. See the LICENSE file for 
 
 ## Related Components
 
-- **[SFC Spec Server](../../mcp/sfc-spec-server/README.md)** - MCP server providing SFC specifications and tools
+- **[SFC Spec Server](../../mcp-servers/sfc-spec-server/README.md)** - MCP server providing SFC specifications and tools
 - **[Main Repository](../../../README.md)** - Overall project documentation and samples
 
 ---

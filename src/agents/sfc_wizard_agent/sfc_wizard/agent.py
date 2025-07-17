@@ -14,16 +14,16 @@ import queue
 from dotenv import load_dotenv
 
 # Import the externalized functions
-from tools.config_generator import generate_config_template
-from tools.sfc_knowledge import load_sfc_knowledge
-from tools.config_validator import SFCConfigValidator
-from tools.diagnostics import diagnose_issue, suggest_optimizations
-from tools.sfc_explanations import explain_concept
-from tools.file_operations import SFCFileOperations
-from tools.log_operations import SFCLogOperations
-from tools.folder_operations import SFCFolderOperations
-from tools.sfc_runner import SFCRunner
-from tools.sfc_visualization import visualize_file_target_data
+from sfc_wizard.tools.config_generator import generate_config_template
+from sfc_wizard.tools.sfc_knowledge import load_sfc_knowledge
+from sfc_wizard.tools.config_validator import SFCConfigValidator
+from sfc_wizard.tools.diagnostics import diagnose_issue, suggest_optimizations
+from sfc_wizard.tools.sfc_explanations import explain_concept
+from sfc_wizard.tools.file_operations import SFCFileOperations
+from sfc_wizard.tools.log_operations import SFCLogOperations
+from sfc_wizard.tools.folder_operations import SFCFolderOperations
+from sfc_wizard.tools.sfc_runner import SFCRunner
+from sfc_wizard.tools.sfc_visualization import visualize_file_target_data
 
 # Load environment variables
 load_dotenv()
@@ -46,7 +46,7 @@ def _create_mcp_client():
     mcp_command = os.getenv("MCP_SERVER_COMMAND", "uv")
     mcp_args_str = os.getenv("MCP_SERVER_ARGS", "run,python")
     mcp_path = os.getenv(
-        "MCP_SERVER_PATH", "../../../src/mcp/sfc-spec-server/sfc_spec/server.py"
+        "MCP_SERVER_PATH", "../../../src/mcp-servers/sfc-spec-server/sfc_spec/server.py"
     )
 
     # Parse comma-separated args and add the path

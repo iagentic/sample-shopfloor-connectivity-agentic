@@ -12,13 +12,13 @@ from typing import Dict, Any, List
 class SFCConfigValidator:
     """
     SFC Configuration Validator class
-    
+
     Provides methods to validate SFC configurations against required schemas and best practices.
     """
 
     def __init__(self, sfc_knowledge: Dict[str, Any]):
         """Initialize the validator with SFC knowledge base
-        
+
         Args:
             sfc_knowledge: Dictionary containing SFC framework knowledge
         """
@@ -28,38 +28,38 @@ class SFCConfigValidator:
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate the entire configuration
-        
+
         Args:
             config: SFC configuration dictionary
-            
+
         Returns:
             True if valid, False if validation errors were found
         """
         # Clear previous validation state
         self.validation_errors = []
         self.recommendations = []
-        
+
         # Run all validations
         self.validate_basic_structure(config)
         self.validate_schedules(config.get("Schedules", []))
         self.validate_sources(config.get("Sources", {}))
         self.validate_targets(config.get("Targets", {}))
         self.validate_adapters(config)
-        
+
         # Return validation result
         return len(self.validation_errors) == 0
-        
+
     def get_errors(self) -> List[str]:
         """Get validation errors
-        
+
         Returns:
             List of validation error messages
         """
         return self.validation_errors
-        
+
     def get_recommendations(self) -> List[str]:
         """Get recommendations for improving the configuration
-        
+
         Returns:
             List of recommendation messages
         """
@@ -67,7 +67,7 @@ class SFCConfigValidator:
 
     def validate_basic_structure(self, config: Dict[str, Any]) -> None:
         """Validate basic configuration structure
-        
+
         Args:
             config: SFC configuration dictionary
         """
@@ -84,7 +84,7 @@ class SFCConfigValidator:
 
     def validate_schedules(self, schedules: List[Dict[str, Any]]) -> None:
         """Validate schedules configuration
-        
+
         Args:
             schedules: List of schedule configurations
         """
@@ -106,7 +106,7 @@ class SFCConfigValidator:
 
     def validate_sources(self, sources: Dict[str, Any]) -> None:
         """Validate sources configuration
-        
+
         Args:
             sources: Dictionary of source configurations
         """
@@ -127,7 +127,7 @@ class SFCConfigValidator:
                         f"Source '{source_name}' uses unsupported protocol adapter: '{protocol}'. "
                         f"Supported protocols: {', '.join(sorted(self.sfc_knowledge['supported_protocols'].keys()))}"
                     )
-                    
+
             if "Channels" not in source_config:
                 self.validation_errors.append(
                     f"Source '{source_name}' missing 'Channels'"
@@ -135,7 +135,7 @@ class SFCConfigValidator:
 
     def validate_targets(self, targets: Dict[str, Any]) -> None:
         """Validate targets configuration
-        
+
         Args:
             targets: Dictionary of target configurations
         """
@@ -151,17 +151,20 @@ class SFCConfigValidator:
             else:
                 # Strict validation: Check if target type is supported
                 target_type = target_config["TargetType"]
-                
+
                 # Check in AWS targets
                 aws_targets = self.sfc_knowledge["aws_targets"].keys()
-                edge_targets = [target["description"] for target in self.sfc_knowledge["edge_targets"].values()]
-                
+                edge_targets = [
+                    target["description"]
+                    for target in self.sfc_knowledge["edge_targets"].values()
+                ]
+
                 # Special case handling for edge targets that have -TARGET suffix
                 if target_type.endswith("-TARGET"):
                     base_type = target_type[:-7]  # Remove -TARGET suffix
                     if base_type in self.sfc_knowledge["edge_targets"]:
                         continue
-                
+
                 # Check if target is in either AWS targets or edge targets
                 if target_type not in aws_targets and target_type not in edge_targets:
                     self.validation_errors.append(
@@ -172,7 +175,7 @@ class SFCConfigValidator:
 
     def validate_adapters(self, config: Dict[str, Any]) -> None:
         """Validate adapter configurations
-        
+
         Args:
             config: SFC configuration dictionary
         """

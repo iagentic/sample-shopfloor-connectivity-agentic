@@ -10,14 +10,16 @@ import json
 from typing import Dict, Any, List
 
 
-def diagnose_issue(issue_description: str, config_json: str, sfc_knowledge: Dict[str, Any]) -> str:
+def diagnose_issue(
+    issue_description: str, config_json: str, sfc_knowledge: Dict[str, Any]
+) -> str:
     """Diagnose SFC issues based on issue description and configuration
-    
+
     Args:
         issue_description: Description of the issue
         config_json: JSON string containing the SFC configuration
         sfc_knowledge: Dictionary containing SFC framework knowledge
-        
+
     Returns:
         String containing the diagnosis results
     """
@@ -60,8 +62,7 @@ def diagnose_issue(issue_description: str, config_json: str, sfc_knowledge: Dict
 
     # Configuration issues
     if any(
-        keyword in issue_lower
-        for keyword in ["config", "invalid", "missing", "error"]
+        keyword in issue_lower for keyword in ["config", "invalid", "missing", "error"]
     ):
         diagnosis.extend(
             [
@@ -145,12 +146,12 @@ def suggest_optimizations(
     config_json: str, performance_requirements: str, sfc_knowledge: Dict[str, Any]
 ) -> str:
     """Suggest optimizations for an SFC configuration
-    
+
     Args:
         config_json: JSON string containing the SFC configuration
         performance_requirements: Description of performance requirements
         sfc_knowledge: Dictionary containing SFC framework knowledge
-        
+
     Returns:
         String containing optimization suggestions
     """
