@@ -7,22 +7,23 @@ Specialized assistant for debugging, creating, and testing SFC configurations.
 """
 
 import sys
+import os
 import json
 import threading
 import queue
 from dotenv import load_dotenv
 
 # Import the externalized functions
-from src.tools.config_generator import generate_config_template
-from src.tools.sfc_knowledge import load_sfc_knowledge
-from src.tools.config_validator import SFCConfigValidator
-from src.tools.diagnostics import diagnose_issue, suggest_optimizations
-from src.tools.sfc_explanations import explain_concept
-from src.tools.file_operations import SFCFileOperations
-from src.tools.log_operations import SFCLogOperations
-from src.tools.folder_operations import SFCFolderOperations
-from src.tools.sfc_runner import SFCRunner
-from src.tools.sfc_visualization import visualize_file_target_data
+from tools.config_generator import generate_config_template
+from tools.sfc_knowledge import load_sfc_knowledge
+from tools.config_validator import SFCConfigValidator
+from tools.diagnostics import diagnose_issue, suggest_optimizations
+from tools.sfc_explanations import explain_concept
+from tools.file_operations import SFCFileOperations
+from tools.log_operations import SFCLogOperations
+from tools.folder_operations import SFCFolderOperations
+from tools.sfc_runner import SFCRunner
+from tools.sfc_visualization import visualize_file_target_data
 
 # Load environment variables
 load_dotenv()
@@ -38,24 +39,45 @@ except ImportError:
     )
     sys.exit(1)
 
-stdio_mcp_client = MCPClient(lambda: stdio_client(
+
+def _create_mcp_client():
+    """Create MCP client from environment variables"""
+    # Get MCP server configuration from environment variables
+    mcp_command = os.getenv("MCP_SERVER_COMMAND", "uv")
+    mcp_args_str = os.getenv("MCP_SERVER_ARGS", "run,python")
+    mcp_path = os.getenv(
+        "MCP_SERVER_PATH", "../../../src/mcp/sfc-spec-server/sfc_spec/server.py"
+    )
+
+    # Parse comma-separated args and add the path
+    mcp_args = [arg.strip() for arg in mcp_args_str.split(",")]
+    mcp_args.append(mcp_path)
+
+    return MCPClient(
+        lambda: stdio_client(
             StdioServerParameters(
-                command="uv", 
-                args=["run", "python", "-m", "src.mcp.sfc-spec-server.server"]
+                command=mcp_command,
+                args=mcp_args,
             )
-        ))
+        )
+    )
+
+
+stdio_mcp_client = _create_mcp_client()
+
 
 class color:
-   PURPLE = '\033[95m'
-   CYAN = '\033[96m'
-   DARKCYAN = '\033[36m'
-   BLUE = '\033[94m'
-   GREEN = '\033[92m'
-   YELLOW = '\033[93m'
-   RED = '\033[91m'
-   BOLD = '\033[1m'
-   UNDERLINE = '\033[4m'
-   END = '\033[0m'
+    PURPLE = "\033[95m"
+    CYAN = "\033[96m"
+    DARKCYAN = "\033[36m"
+    BLUE = "\033[94m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+    END = "\033[0m"
+
 
 class SFCWizardAgent:
     """
@@ -73,7 +95,7 @@ class SFCWizardAgent:
         self.active_processes = []
 
         # Initialize the Strands agent with SFC-specific tools
-        
+
         self.agent = self._create_agent()
 
     # _load_sfc_knowledge method has been externalized to src/tools/sfc_knowledge.py
@@ -266,13 +288,13 @@ class SFCWizardAgent:
                 current_config_name=self.current_config_name,
                 last_config_name=self.last_config_name,
             )
-            
+
         @tool
         def visualize_data(minutes: int = 10, jmespath_expr: str = "value") -> str:
             """Visualize data from the currently running SFC configuration with FILE-TARGET enabled.
-            
+
             Shows the data from the last N minutes using an ncurses-based visualizer.
-            
+
             Args:
                 minutes: Number of minutes of data to visualize (default: 10)
                 jmespath_expr: JMESPath expression to extract values from the data (e.g., "sources.SinusSource.values.sinus.value")
@@ -280,7 +302,7 @@ class SFCWizardAgent:
             return visualize_file_target_data(
                 config_name=self.current_config_name,
                 minutes=minutes,
-                jmespath_expr=jmespath_expr
+                jmespath_expr=jmespath_expr,
             )
 
         # Create agent with SFC-specific tools
@@ -288,33 +310,28 @@ class SFCWizardAgent:
             bedrock_model = BedrockModel(
                 model_id="eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
             )
-            agent_internal_tools=[
-                    validate_sfc_config,
-                    create_sfc_config_template,
-                    #diagnose_sfc_issue,
-                    #suggest_sfc_optimization,
-                    #generate_environment_specs,
-                    #explain_sfc_concept,
-                    read_config_from_file,
-                    save_config_to_file,
-                    run_sfc_config_locally,
-                    #what_is_sfc,
-                    tail_logs,
-                    clean_runs_folder,
-                    confirm_clean_runs_folder,
-                    visualize_data,
-                ]
+            agent_internal_tools = [
+                validate_sfc_config,
+                create_sfc_config_template,
+                # diagnose_sfc_issue,
+                # suggest_sfc_optimization,
+                # generate_environment_specs,
+                # explain_sfc_concept,
+                read_config_from_file,
+                save_config_to_file,
+                run_sfc_config_locally,
+                # what_is_sfc,
+                tail_logs,
+                clean_runs_folder,
+                confirm_clean_runs_folder,
+                visualize_data,
+            ]
             mcp_tools = stdio_mcp_client.list_tools_sync()
-            #print(mcp_tools)
-            agent = Agent(
-                model=bedrock_model,
-                tools=agent_internal_tools+mcp_tools
-            )
+            # print(mcp_tools)
+            agent = Agent(model=bedrock_model, tools=agent_internal_tools + mcp_tools)
         except Exception as e:
             print(e)
-            agent = Agent(
-                tools=agent_internal_tools
-            )
+            agent = Agent(tools=agent_internal_tools)
 
         return agent
 
@@ -379,7 +396,12 @@ class SFCWizardAgent:
     def boot(self):
         """Boot sequence for SFC Wizard"""
         print("=" * 43)
-        print(color.BOLD+color.BLUE+"🏭 AWS SHOP FLOOR CONNECTIVITY (SFC) WIZARD"+color.END)
+        print(
+            color.BOLD
+            + color.BLUE
+            + "🏭 AWS SHOP FLOOR CONNECTIVITY (SFC) WIZARD"
+            + color.END
+        )
         print("=" * 43)
         print("Specialized assistant for industrial data connectivity to AWS")
         print()
@@ -434,7 +456,9 @@ class SFCWizardAgent:
         try:
             while True:
                 try:
-                    user_input = input(color.BOLD+color.BLUE+"SFC Wizard: "+color.END).strip()
+                    user_input = input(
+                        color.BOLD + color.BLUE + "SFC Wizard: " + color.END
+                    ).strip()
 
                     if user_input.lower() in ["exit", "quit", "bye"]:
                         print("\n🏭 Thank you for using the SFC Wizard!")

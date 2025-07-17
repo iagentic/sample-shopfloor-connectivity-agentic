@@ -24,11 +24,11 @@ The server provides the following tools:
 
 1. Ensure you have Python 3.8+ installed
 2. Install dependencies:
-   ```
+   ```bash
    pip install fastmcp requests
    ```
 3. Clone the SFC repository into the `sfc-repo` directory:
-   ```
+   ```bash
    git clone https://github.com/aws-samples/shopfloor-connectivity sfc-repo
    ```
 
@@ -36,13 +36,76 @@ The server provides the following tools:
 
 ### Running the Server
 
-Start the MCP server:
+#### Option 1: Run Directly from GitHub (Recommended)
+
+Run the server directly from the GitHub repository without cloning:
 
 ```bash
-python server.py
+uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server sfc_spec
 ```
 
-The server will run on `http://127.0.0.1:8000/sfc` by default.
+#### Option 2: Local Development
+
+The server runs using stdio transport for MCP communication:
+
+```bash
+python -m sfc_spec.server
+```
+
+### MCP Client Configuration
+
+To use this server with an MCP client, add it to your MCP configuration file:
+
+**Claude Desktop Configuration (`claude_desktop_config.json`):**
+```json
+{
+  "mcpServers": {
+    "sfc-spec-server": {
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 5000,
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server",
+        "sfc_spec"
+      ],
+      "env": {}
+    }
+  }
+}
+```
+
+**Cline Configuration:**
+```json
+{
+  "mcpServers": [
+    {
+      "name": "sfc-spec-server",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server",
+        "sfc_spec"
+      ]
+    }
+  ]
+}
+```
+
+**For Local Development:**
+```json
+{
+  "mcpServers": {
+    "sfc-spec-server": {
+      "command": "python",
+      "args": ["-m", "sfc_spec.server"],
+      "cwd": "/path/to/sfc-spec-server"
+    }
+  }
+}
+```
 
 ### Testing the Server
 
@@ -54,13 +117,56 @@ python test_server.py
 
 This will test all available tools and report results.
 
-## Tool Examples
+## MCP Tool Usage Examples
 
-### Retrieving SFC Documentation
+Once connected to an MCP client, you can use the tools with the following JSON format:
 
+### Repository Management
+
+#### Update Repository
 ```json
 {
-  "server_name": "sfc-docs-server",
+  "server_name": "sfc-spec-server",
+  "tool_name": "update_repo",
+  "arguments": {}
+}
+```
+
+### Documentation Listing Tools
+
+#### List Core Documentation
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "list_core_docs",
+  "arguments": {}
+}
+```
+
+#### List Adapter Documentation
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "list_adapter_docs",
+  "arguments": {}
+}
+```
+
+#### List Target Documentation
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "list_target_docs",
+  "arguments": {}
+}
+```
+
+### Documentation Retrieval Tools
+
+#### Get Core Documentation
+```json
+{
+  "server_name": "sfc-spec-server",
   "tool_name": "get_core_doc",
   "arguments": {
     "doc_name": "architecture"
@@ -68,49 +174,62 @@ This will test all available tools and report results.
 }
 ```
 
-### Searching Documentation
-
+#### Get Adapter Documentation
 ```json
 {
-  "server_name": "sfc-docs-server",
+  "server_name": "sfc-spec-server",
+  "tool_name": "get_adapter_doc",
+  "arguments": {
+    "doc_name": "mqtt-adapter"
+  }
+}
+```
+
+#### Get Target Documentation
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "get_target_doc",
+  "arguments": {
+    "doc_name": "aws-s3-target"
+  }
+}
+```
+
+### Advanced Documentation Search
+
+#### Query Documents with Filtering
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "query_docs",
+  "arguments": {
+    "doc_type": "all",
+    "search_term": "configuration",
+    "include_content": true
+  }
+}
+```
+
+#### Search Document Content
+```json
+{
+  "server_name": "sfc-spec-server",
   "tool_name": "search_doc_content",
   "arguments": {
-    "search_text": "configuration",
-    "doc_type": "all",
+    "search_text": "OPC UA",
+    "doc_type": "adapter",
     "case_sensitive": false
   }
 }
 ```
 
-### Validating a Configuration
+### JSON Example Extraction
 
+#### Extract JSON Examples with Pattern Matching
 ```json
 {
-  "server_name": "sfc-docs-server",
-  "tool_name": "validate_sfc_config",
-  "arguments": {
-    "config": {
-      "name": "MyAdapter",
-      "adapterType": "OPCUA",
-      "sources": [
-        {
-          "name": "OpcuaSource1",
-          "endpoint": "opc.tcp://localhost:4840/opcua/server",
-          "topics": [
-            {"name": "Topic1", "sourcePath": "ns=2;i=1", "dataType": "Int32"}
-          ]
-        }
-      ]
-    }
-  }
-}
-```
-
-### Extracting JSON Examples
-
-```json
-{
-  "server_name": "sfc-docs-server",
+  "server_name": "sfc-spec-server",
   "tool_name": "extract_json_examples",
   "arguments": {
     "doc_type": "core",
@@ -119,17 +238,16 @@ This will test all available tools and report results.
 }
 ```
 
-The `doc_name` parameter supports flexible pattern matching:
+**Pattern Matching Options:**
 - Exact match: `"configuration"` matches only "configuration.md"
 - Prefix match: `"config*"` matches files starting with "config"
 - Suffix match: `"*config"` matches files ending with "config"
 - Contains match: `"*config*"` matches any file containing "config"
 
-### Retrieving Configuration Examples
-
+#### Get SFC Configuration Examples
 ```json
 {
-  "server_name": "sfc-docs-server",
+  "server_name": "sfc-spec-server",
   "tool_name": "get_sfc_config_examples",
   "arguments": {
     "component_type": "adapter",
@@ -138,7 +256,135 @@ The `doc_name` parameter supports flexible pattern matching:
 }
 ```
 
-The `name_pattern` parameter supports the same wildcard matching as the `extract_json_examples` tool, allowing you to filter configuration examples by component name.
+### Configuration Validation
+
+#### Validate SFC Configuration
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "validate_sfc_config",
+  "arguments": {
+    "config": {
+      "name": "MyOPCUAAdapter",
+      "adapterType": "OPCUA",
+      "description": "OPC UA adapter for industrial equipment",
+      "sources": [
+        {
+          "name": "OpcuaSource1",
+          "endpoint": "opc.tcp://localhost:4840/opcua/server",
+          "securityPolicy": "None",
+          "topics": [
+            {
+              "name": "Temperature",
+              "sourcePath": "ns=2;i=1001",
+              "dataType": "Float"
+            },
+            {
+              "name": "Pressure",
+              "sourcePath": "ns=2;i=1002",
+              "dataType": "Float"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+#### Validate Target Configuration
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "validate_sfc_config",
+  "arguments": {
+    "config": {
+      "name": "MyS3Target",
+      "targetType": "AWS_S3",
+      "description": "AWS S3 target for data storage",
+      "targets": [
+        {
+          "name": "S3Bucket1",
+          "bucket": "my-sfc-data-bucket",
+          "region": "us-east-1",
+          "prefix": "industrial-data/",
+          "compression": "gzip"
+        }
+      ]
+    }
+  }
+}
+```
+
+## Example Tool Usage Workflows
+
+### Complete Documentation Search Workflow
+```json
+[
+  {
+    "server_name": "sfc-spec-server",
+    "tool_name": "update_repo",
+    "arguments": {}
+  },
+  {
+    "server_name": "sfc-spec-server",
+    "tool_name": "query_docs",
+    "arguments": {
+      "doc_type": "adapter",
+      "search_term": "opcua",
+      "include_content": false
+    }
+  },
+  {
+    "server_name": "sfc-spec-server",
+    "tool_name": "get_adapter_doc",
+    "arguments": {
+      "doc_name": "opcua-adapter"
+    }
+  },
+  {
+    "server_name": "sfc-spec-server",
+    "tool_name": "extract_json_examples",
+    "arguments": {
+      "doc_type": "adapter",
+      "doc_name": "opcua*"
+    }
+  }
+]
+```
+
+### Configuration Development Workflow
+```json
+[
+  {
+    "server_name": "sfc-spec-server",
+    "tool_name": "get_sfc_config_examples",
+    "arguments": {
+      "component_type": "adapter",
+      "name_pattern": "*MQTT*"
+    }
+  },
+  {
+    "server_name": "sfc-spec-server",
+    "tool_name": "validate_sfc_config",
+    "arguments": {
+      "config": {
+        "name": "MyMQTTAdapter",
+        "adapterType": "MQTT",
+        "sources": [
+          {
+            "name": "MqttSource1",
+            "broker": "mqtt://localhost:1883",
+            "topics": [
+              {"name": "sensor1", "sourcePath": "sensors/temperature"}
+            ]
+          }
+        ]
+      }
+    }
+  }
+]
+```
 
 ## Integration with AI Assistants
 

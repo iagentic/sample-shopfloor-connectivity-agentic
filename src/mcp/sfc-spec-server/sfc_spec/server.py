@@ -10,9 +10,8 @@ import os
 import subprocess
 import re
 import json
-from pathlib import Path
 from fastmcp import FastMCP
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, Optional
 
 # Define the repository path
 REPO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sfc-repo")
