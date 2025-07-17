@@ -36,6 +36,16 @@ The server provides the following tools:
 
 ### Running the Server
 
+#### Option 1: Run Directly from GitHub (Recommended)
+
+Run the server directly from the GitHub repository without cloning:
+
+```bash
+uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server sfc_spec
+```
+
+#### Option 2: Local Development
+
 The server runs using stdio transport for MCP communication:
 
 ```bash
@@ -51,9 +61,17 @@ To use this server with an MCP client, add it to your MCP configuration file:
 {
   "mcpServers": {
     "sfc-spec-server": {
-      "command": "python",
-      "args": ["-m", "sfc_spec.server"],
-      "cwd": "/path/to/sfc-spec-server"
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 5000,
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server",
+        "sfc_spec"
+      ],
+      "env": {}
     }
   }
 }
@@ -65,11 +83,27 @@ To use this server with an MCP client, add it to your MCP configuration file:
   "mcpServers": [
     {
       "name": "sfc-spec-server",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp/sfc-spec-server",
+        "sfc_spec"
+      ]
+    }
+  ]
+}
+```
+
+**For Local Development:**
+```json
+{
+  "mcpServers": {
+    "sfc-spec-server": {
       "command": "python",
       "args": ["-m", "sfc_spec.server"],
       "cwd": "/path/to/sfc-spec-server"
     }
-  ]
+  }
 }
 ```
 
