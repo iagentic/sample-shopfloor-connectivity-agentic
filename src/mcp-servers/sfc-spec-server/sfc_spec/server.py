@@ -18,8 +18,8 @@ REPO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sfc-repo")
 
 # Create the MCP server
 server = FastMCP(
-    name="sfc-docs-server",
-    instructions="Provides access to SFC documentation and repository management tools",
+    name="sfc-spec-server",
+    instructions="Provides access to SFC documentation Specification and repository management tools",
 )
 
 
@@ -40,7 +40,7 @@ def update_repo() -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "update_repo",
           "arguments": {}
         }
@@ -77,7 +77,7 @@ def get_core_doc_tool(doc_name: str) -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "get_core_doc",
           "arguments": {
             "doc_name": "architecture"
@@ -108,7 +108,7 @@ def list_core_docs_tool() -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "list_core_docs",
           "arguments": {}
         }
@@ -139,7 +139,7 @@ def get_adapter_doc_tool(doc_name: str) -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "get_adapter_doc",
           "arguments": {
             "doc_name": "mqtt-adapter"
@@ -170,7 +170,7 @@ def list_adapter_docs_tool() -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "list_adapter_docs",
           "arguments": {}
         }
@@ -201,7 +201,7 @@ def get_target_doc_tool(doc_name: str) -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "get_target_doc",
           "arguments": {
             "doc_name": "aws-s3-target"
@@ -232,7 +232,7 @@ def list_target_docs_tool() -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "list_target_docs",
           "arguments": {}
         }
@@ -311,7 +311,7 @@ def query_docs_tool(
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "query_docs",
           "arguments": {
             "doc_type": "all",
@@ -417,7 +417,7 @@ def extract_json_examples_tool(doc_type: str, doc_name: str) -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "extract_json_examples",
           "arguments": {
             "doc_type": "core",
@@ -551,7 +551,7 @@ def search_doc_content_tool(
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "search_doc_content",
           "arguments": {
             "search_text": "configuration",
@@ -675,7 +675,7 @@ def get_sfc_config_examples_tool(
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "get_sfc_config_examples",
           "arguments": {
             "component_type": "adapter",
@@ -799,7 +799,7 @@ def validate_sfc_config_tool(config: Dict[str, Any]) -> Dict[str, Any]:
     Example:
         ```
         {
-          "server_name": "sfc-docs-server",
+          "server_name": "sfc-spec-server",
           "tool_name": "validate_sfc_config",
           "arguments": {
             "config": {
