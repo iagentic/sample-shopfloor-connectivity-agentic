@@ -1,10 +1,10 @@
-# SFC Wizard Agent with Strands SDK
+# Shopfloor Connectivity Agentic - Purposebuilt Agent using Strands SDK
 
-A specialized AI agent built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) for AWS Shopfloor Connectivity (SFC) Framework.
+A specialized AI agent built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) for the Shopfloor Connectivity (SFC) Framework.
 
 ## Overview
 
-This project provides AI-powered tools for AWS Shopfloor Connectivity (SFC), helping developers and engineers work with industrial data connectivity configurations. The project consists of two main components:
+This project provides AI-powered tools for Shopfloor Connectivity (SFC), helping developers and engineers work with industrial data connectivity configurations. The project consists of two main components:
 
 ## Components
 
