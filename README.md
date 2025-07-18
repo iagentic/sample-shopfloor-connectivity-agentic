@@ -1,6 +1,6 @@
-# Shopfloor Connectivity Agentic - Purpose built Agent and MCP server for SFC
+# Shopfloor Connectivity Agentic
 
-A specialized AI agent built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) for the Shopfloor Connectivity (SFC) Framework.
+A specialized AI agent built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) for the [Shopfloor Connectivity](https://github.com/aws-samples/shopfloor-connectivity) (SFC) Framework.
 
 ## Overview
 
