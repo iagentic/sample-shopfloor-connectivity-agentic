@@ -1,14 +1,14 @@
-# SFC Wizard Agent with Strands SDK
+# Shopfloor Connectivity Agentic - Purpose built Agent and MCP server for SFC
 
-A specialized AI agent built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) for AWS Shopfloor Connectivity (SFC) Framework.
+A specialized AI agent built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) for the Shopfloor Connectivity (SFC) Framework.
 
 ## Overview
 
-This project provides AI-powered tools for AWS Shopfloor Connectivity (SFC), helping developers and engineers work with industrial data connectivity configurations. The project consists of two main components:
+This project provides AI-powered tools for Shopfloor Connectivity (SFC), helping developers and engineers work with industrial data connectivity configurations. The project consists of two main components:
 
 ## Components
 
-### 🏭 [SFC Wizard Agent](src/agents/sfc_wizard_agent/README.md)
+### 🏭 [SFC Wizard Agent](agents/sfc_wizard_agent/README.md)
 
 An intelligent conversational agent specialized for SFC configuration management, debugging, and testing. The agent provides:
 
@@ -19,11 +19,11 @@ An intelligent conversational agent specialized for SFC configuration management
 
 **Quick Start:**
 ```bash
-cd src/agents/sfc_wizard_agent
+cd agents/sfc_wizard_agent
 ./scripts/run.sh
 ```
 
-### 📚 [SFC Spec Server](src/mcp-servers/sfc-spec-server/README.md) 
+### 📚 [SFC Spec Server](mcp-servers/sfc-spec-server/README.md) 
 
 A Model Context Protocol (MCP) server that provides SFC specifications, documentation, and sfc_wizard.tools. Features include:
 
@@ -33,7 +33,7 @@ A Model Context Protocol (MCP) server that provides SFC specifications, document
 
 **Quick Start:**
 ```bash
-cd src/mcp-servers/sfc-spec-server  
+cd mcp-servers/sfc-spec-server  
 ./scripts/run.sh
 ```
 
@@ -57,12 +57,12 @@ You can run the components directly from GitHub without cloning:
 
 **SFC Wizard Agent:**
 ```bash
-uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/agents/sfc_wizard_agent agent
+uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=agents/sfc_wizard_agent agent
 ```
 
 **SFC Spec MCP Server:**
 ```bash
-uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp-servers/sfc-spec-server sfc_spec
+uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=mcp-servers/sfc-spec-server sfc_spec
 ```
 
 #### Option 2: Local Development
@@ -82,8 +82,8 @@ uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=
 
 Each component can be configured with environment variables. See the individual component READMEs for specific configuration options:
 
-- [SFC Wizard Agent Configuration](src/agents/sfc_wizard_agent/README.md#configuration)
-- [SFC Spec Server Configuration](src/mcp-servers/sfc-spec-server/README.md#configuration)
+- [SFC Wizard Agent Configuration](agents/sfc_wizard_agent/README.md#configuration)
+- [SFC Spec Server Configuration](mcp-servers/sfc-spec-server/README.md#configuration)
 
 ## Use Cases
 
@@ -100,7 +100,7 @@ Each component can be configured with environment variables. See the individual 
 ### Project Structure
 
 ```
-src/
+
 ├── agents/
 │   └── sfc_wizard_agent/          # Main AI agent for SFC management
 │       ├── README.md              # Agent-specific documentation
@@ -116,14 +116,14 @@ src/
 ### Contributing
 
 See individual component READMEs for development guidelines:
-- [SFC Wizard Agent Development](src/agents/sfc_wizard_agent/README.md#development)
-- [SFC Spec Server Development](src/mcp-servers/sfc-spec-server/README.md#development)
+- [SFC Wizard Agent Development](agents/sfc_wizard_agent/README.md#development)
+- [SFC Spec Server Development](mcp-servers/sfc-spec-server/README.md#development)
 
 ### Troubleshooting
 
 For component-specific troubleshooting, refer to:
-- [SFC Wizard Agent Troubleshooting](src/agents/sfc_wizard_agent/README.md#troubleshooting)
-- [SFC Spec Server Troubleshooting](src/mcp-servers/sfc-spec-server/README.md#troubleshooting)
+- [SFC Wizard Agent Troubleshooting](agents/sfc_wizard_agent/README.md#troubleshooting)
+- [SFC Spec Server Troubleshooting](mcp-servers/sfc-spec-server/README.md#troubleshooting)
 
 ## Security
 
