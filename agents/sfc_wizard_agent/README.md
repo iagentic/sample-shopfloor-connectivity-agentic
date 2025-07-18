@@ -43,7 +43,7 @@ uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=
 
 1. **Navigate to the agent directory:**
    ```bash
-   cd src/agents/sfc_wizard_agent
+   cd agents/sfc_wizard_agent
    ```
 
 2. **Initialize dependencies:**
@@ -105,7 +105,7 @@ Create a `.env` file in the agent directory with:
 # MCP Server Configuration (optional)
 MCP_SERVER_COMMAND=uv
 MCP_SERVER_ARGS=run,python
-MCP_SERVER_PATH=../../../src/mcp-servers/sfc-spec-server/sfc_spec/server.py
+MCP_SERVER_PATH=../../../mcp-servers/sfc-spec-server/sfc_spec/server.py
 
 # AWS Configuration (for deployment)
 AWS_REGION=us-east-1
@@ -151,7 +151,7 @@ SFC Wizard: Visualize the last 10 minutes of data using the expression "sources.
 ## Project Structure
 
 ```
-src/agents/sfc_wizard_agent/
+agents/sfc_wizard_agent/
 ├── README.md                   # This file
 ├── pyproject.toml              # Project configuration and dependencies
 ├── uv.lock                     # Locked dependency versions
