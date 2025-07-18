@@ -42,12 +42,12 @@ except ImportError:
 
 def _create_mcp_client():
     """Create MCP client from environment variables"""
-    # Get MCP server configuration from environment variables
-    mcp_command = os.getenv("MCP_SERVER_COMMAND", "uv")
-    mcp_args_str = os.getenv("MCP_SERVER_ARGS", "run,python")
-    mcp_path = os.getenv(
-        "MCP_SERVER_PATH", "../../../src/mcp-servers/sfc-spec-server/sfc_spec/server.py"
-    )
+    # Get MCP server configuration from environment variables - defaults to uvx based mcp runtime
+
+    # NOTE: Use .env file at repo-root for local dev setup (copy 1:1 from .env.template as a start...)
+    mcp_command = os.getenv("MCP_SERVER_COMMAND", "uvx")
+    mcp_args_str = os.getenv("MCP_SERVER_ARGS", "--from,git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/mcp-servers/sfc-spec-server")
+    mcp_path = os.getenv("MCP_SERVER_PATH", "sfc_spec")
 
     # Parse comma-separated args and add the path
     mcp_args = [arg.strip() for arg in mcp_args_str.split(",")]
