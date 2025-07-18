@@ -135,6 +135,6 @@ This library is licensed under the MIT-0 License. See the LICENSE file.
 
 ## Links
 
-- [AWS Shopfloor Connectivity](https://github.com/aws-samples/shopfloor-connectivity)
+- [Shopfloor Connectivity](https://github.com/aws-samples/shopfloor-connectivity)
 - [Strands Agents SDK](https://github.com/strands-agents/sdk-python)
 - [AWS Industrial IoT](https://aws.amazon.com/industrial/)
