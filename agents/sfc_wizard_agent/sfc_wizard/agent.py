@@ -304,11 +304,36 @@ class SFCWizardAgent:
                 minutes=minutes,
                 jmespath_expr=jmespath_expr,
             )
+            
+        @tool
+        def run_example(input_text: str) -> str:
+            """Run the example SFC configuration when receiving 'example' as input.
+            
+            Args:
+                input_text: The text input from the user
+            """
+            if input_text.lower().strip() == "example":
+                # Path to the example config file
+                example_config_path = "sfc-config-example.json"
+                
+                try:
+                    # Read the example config file
+                    with open(example_config_path, 'r') as f:
+                        config_json = f.read()
+                    
+                    # Run the example configuration using the existing tool
+                    return self._run_sfc_config_locally(config_json, "example-config")
+                except Exception as e:
+                    return f"❌ Error running example configuration: {str(e)}"
+            else:
+                return f"Input '{input_text}' not recognized as 'example'. No action taken."
 
         # Create agent with SFC-specific tools
         try:
+            # Get model ID from environment variable with default value if not set
+            model_id = os.getenv("BEDROCK_MODEL_ID", "eu.anthropic.claude-3-7-sonnet-20250219-v1:0")
             bedrock_model = BedrockModel(
-                model_id="eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
+                model_id=model_id
             )
             agent_internal_tools = [
                 validate_sfc_config,
@@ -325,6 +350,7 @@ class SFCWizardAgent:
                 clean_runs_folder,
                 confirm_clean_runs_folder,
                 visualize_data,
+                run_example,
             ]
             mcp_tools = stdio_mcp_client.list_tools_sync()
             # print(mcp_tools)
@@ -415,6 +441,7 @@ class SFCWizardAgent:
         print("• 🏗️  Define required deployment environments")
         print("• 📚 Explain SFC concepts and components")
         print("• 📊 Visualize data from configurations with FILE-TARGET")
+        print("• 🚀 Type 'example' to run a sample configuration instantly")
         print()
         print("📋 Supported Protocols:")
         protocol_list = list(self.sfc_knowledge["supported_protocols"].keys())

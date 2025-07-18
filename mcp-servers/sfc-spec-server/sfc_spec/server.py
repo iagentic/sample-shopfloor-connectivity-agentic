@@ -16,6 +16,35 @@ from typing import Dict, Any, Optional
 # Define the repository path
 REPO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sfc-repo")
 
+# Define the repository URL from environment variable with a fallback to default
+REPO_URL = os.environ.get("SFC_REPO_URL", "https://github.com/aws-samples/shopfloor-connectivity.git")
+
+def init_sfc_repository():
+    """
+    Initializes the SFC repository by cloning it if it doesn't exist.
+    
+    This function checks if the SFC repository exists at the defined path.
+    If it doesn't exist, it clones the repository from the specified URL.
+    """
+    if not os.path.exists(REPO_PATH):
+        try:
+            print(f"SFC repository not found at {REPO_PATH}. Cloning from {REPO_URL}...")
+            os.makedirs(os.path.dirname(REPO_PATH), exist_ok=True)
+            result = subprocess.run(
+                ["git", "clone", REPO_URL, REPO_PATH], 
+                capture_output=True, 
+                text=True, 
+                check=True
+            )
+            print("SFC repository cloned successfully.")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to clone SFC repository: {e.stderr}")
+            return False
+    else:
+        print(f"SFC repository found at {REPO_PATH}.")
+        return True
+
 # Create the MCP server
 server = FastMCP(
     name="sfc-spec-server",
@@ -924,6 +953,9 @@ def validate_sfc_config_tool(config: Dict[str, Any]) -> Dict[str, Any]:
 
 def main():
     """Entry point for the MCP server."""
+    # Initialize the SFC repository if needed
+    init_sfc_repository()
+    # Run the MCP server
     server.run(transport="stdio")
 
 

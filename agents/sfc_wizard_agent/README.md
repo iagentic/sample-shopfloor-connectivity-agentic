@@ -36,7 +36,7 @@ Or follow the [UV installation guide](https://docs.astral.sh/uv/getting-started/
 Run the agent directly from the GitHub repository without cloning:
 
 ```bash
-uvx --from git+https://github.com/aws-samples/sample-sfc-agent.git#subdirectory=src/agents/sfc_wizard_agent agent
+uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=src/agents/sfc_wizard_agent agent
 ```
 
 ### Option 2: Local Development
