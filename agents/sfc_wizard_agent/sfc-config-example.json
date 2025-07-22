@@ -15,9 +15,21 @@
         ]
       },
       "Targets": [
-        "#DEBUGTarget",
+        "DEBUGTarget",
         "FileTarget"
-      ]
+      ],
+      "Aggregation": {
+        "Size": 100,
+        "Output": {
+          "*": {
+            "sinus": [
+              "StdDev",
+              "Max",
+              "Min"
+            ]
+          }
+        }
+      }
     }
   ],
   "Sources": {
