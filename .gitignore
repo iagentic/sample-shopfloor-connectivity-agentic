@@ -4,3 +4,4 @@ runs/
 modules/
 .env
 sfc-repo
+.kiro
