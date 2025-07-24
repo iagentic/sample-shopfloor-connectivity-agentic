@@ -56,7 +56,7 @@ def generate_config_template(
 def generate_source_template(
     protocol: str, sfc_knowledge: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """Generate source configuration template
+    """Generate source configuration template - check MCP tools too!!
 
     Args:
         protocol: Source protocol (e.g., OPCUA, MODBUS, S7)
@@ -80,7 +80,7 @@ def generate_source_template(
 def generate_target_template(
     target: str, environment: str, sfc_knowledge: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """Generate target configuration template
+    """Generate target configuration template - check MCP tools too!!
 
     Args:
         target: Target service (e.g., AWS-S3, AWS-IOT-CORE, DEBUG)

@@ -7,6 +7,12 @@ class SFCWizardChat {
         this.messageForm = document.getElementById('messageForm');
         this.socket = null;
         this.isReady = false;
+        this.markdownConverter = new showdown.Converter({
+            tables: true,
+            tasklists: true,
+            strikethrough: true,
+            emoji: true
+        });
         
         this.setupFormHandlers();
         this.showInitializingMessage();
@@ -161,7 +167,17 @@ class SFCWizardChat {
 
         const content = document.createElement('div');
         content.className = 'message-content';
-        content.innerHTML = message.content;
+        
+        // Convert markdown to HTML if message is from assistant
+        if (message.role === 'assistant') {
+            // Process JSON blocks first
+            const processedContent = this.processJsonBlocks(message.content);
+            // Convert markdown to HTML
+            content.innerHTML = this.markdownConverter.makeHtml(processedContent);
+        } else {
+            // For user messages, just escape HTML
+            content.textContent = message.content;
+        }
 
         const timestamp = document.createElement('div');
         timestamp.className = 'timestamp';
@@ -201,6 +217,36 @@ class SFCWizardChat {
     formatTime(timestamp) {
         const date = new Date(timestamp);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    processJsonBlocks(content) {
+        // Regular expression to find JSON blocks
+        const jsonPattern = /```json\n([\s\S]*?)```/g;
+        
+        return content.replace(jsonPattern, (match, jsonContent) => {
+            try {
+                // Try to parse and format the JSON
+                const parsed = JSON.parse(jsonContent);
+                const formattedJson = JSON.stringify(parsed, null, 2);
+                
+                // Generate a unique ID for the copy button
+                const jsonId = `json_${Math.random().toString(36).substring(2, 10)}`;
+                
+                // Create formatted JSON block with copy button
+                return `<div class="json-container">
+<div class="json-header">
+<span class="json-label">JSON Configuration</span>
+<button class="copy-json-btn" onclick="copyJsonToClipboard('${jsonId}')" title="Copy JSON">
+<i class="fas fa-copy"></i>
+</button>
+</div>
+<pre class="json-code" id="${jsonId}"><code>${formattedJson}</code></pre>
+</div>`;
+            } catch (error) {
+                // If it's not valid JSON, return as code block
+                return `<pre><code>${jsonContent}</code></pre>`;
+            }
+        });
     }
 }
 
