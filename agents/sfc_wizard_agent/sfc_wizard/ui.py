@@ -26,8 +26,8 @@ class ChatUI:
         
         # Initialize Flask app
         self.app = Flask(__name__, 
-                        template_folder='templates',
-                        static_folder='static')
+                        template_folder='html',
+                        static_folder='html/assets')
         self.app.secret_key = 'sfc-wizard-secret-key-change-this'
         
         # Initialize SocketIO
@@ -38,6 +38,7 @@ class ChatUI:
         
         # SFC Wizard Agent will be initialized later within MCP context
         self.sfc_agent = None
+        self.agent_ready = False
         
         # Setup routes and socket handlers
         self._setup_routes()
@@ -51,6 +52,7 @@ class ChatUI:
         """Initialize the SFC Wizard Agent within MCP context."""
         if self.sfc_agent is None:
             self.sfc_agent = SFCWizardAgent()
+            self.agent_ready = True
             print("✅ SFC Wizard Agent initialized with MCP tools")
 
     def _setup_routes(self):
@@ -68,6 +70,14 @@ class ChatUI:
         def health():
             """Health check endpoint."""
             return jsonify({"status": "healthy", "service": "SFC Wizard Chat UI"})
+        
+        @self.app.route('/ready')
+        def ready():
+            """Agent readiness check endpoint."""
+            if self.agent_ready and self.sfc_agent is not None:
+                return jsonify({"status": "ready", "agent": "initialized"})
+            else:
+                return jsonify({"status": "not_ready", "agent": "initializing"}), 503
 
     def _setup_socket_handlers(self):
         """Setup SocketIO event handlers."""
@@ -75,6 +85,11 @@ class ChatUI:
         @self.socketio.on('connect')
         def handle_connect():
             """Handle client connection."""
+            # Check if agent is ready before allowing connections
+            if not self.agent_ready or self.sfc_agent is None:
+                emit('agent_not_ready', {'message': 'Agent is still initializing. Please wait...'})
+                return False
+            
             session_id = session.get('session_id', str(uuid.uuid4()))
             session['session_id'] = session_id
             
@@ -105,6 +120,15 @@ class ChatUI:
         @self.socketio.on('send_message')
         def handle_message(data):
             """Handle incoming chat message."""
+            # Double-check agent readiness
+            if not self.agent_ready or self.sfc_agent is None:
+                emit('agent_response', {
+                    'role': 'assistant',
+                    'content': '❌ Agent is not ready yet. Please refresh the page and try again.',
+                    'timestamp': datetime.now().isoformat()
+                })
+                return
+            
             session_id = session.get('session_id')
             user_message = data.get('message', '').strip()
             
