@@ -5,3 +5,4 @@ modules/
 .env
 sfc-repo
 .kiro
+conversation_logs

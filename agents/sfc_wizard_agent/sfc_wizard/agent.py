@@ -24,6 +24,7 @@ from sfc_wizard.tools.log_operations import SFCLogOperations
 from sfc_wizard.tools.folder_operations import SFCFolderOperations
 from sfc_wizard.tools.sfc_runner import SFCRunner
 from sfc_wizard.tools.sfc_visualization import visualize_file_target_data
+from sfc_wizard.tools.prompt_logger import PromptLogger
 
 # Load environment variables
 load_dotenv()
@@ -93,6 +94,9 @@ class SFCWizardAgent:
         self.recommendations = []
         # Track active SFC processes for cleanup
         self.active_processes = []
+        
+        # Initialize the prompt logger
+        self.prompt_logger = PromptLogger(max_history=20, log_dir="conversation_logs")
 
         # Initialize the Strands agent with SFC-specific tools
 
@@ -327,6 +331,25 @@ class SFCWizardAgent:
                     return f"❌ Error running example configuration: {str(e)}"
             else:
                 return f"Input '{input_text}' not recognized as 'example'. No action taken."
+                
+        @tool
+        def save_conversation(count: int = 1) -> str:
+            """Save the last N conversation exchanges as markdown files.
+            
+            Each file contains a user prompt and the agent's response, formatted in markdown.
+            The filename is generated based on the content of the prompt.
+            
+            Args:
+                count: Number of recent conversations to save (default: 1)
+            """
+            try:
+                success, message = self.prompt_logger.save_n_conversations(count)
+                if success:
+                    return f"✅ {message}"
+                else:
+                    return f"❌ {message}"
+            except Exception as e:
+                return f"❌ Error saving conversations: {str(e)}"
 
         # Create agent with SFC-specific tools
         try:
@@ -351,10 +374,16 @@ class SFCWizardAgent:
                 confirm_clean_runs_folder,
                 visualize_data,
                 run_example,
+                save_conversation,
             ]
             mcp_tools = stdio_mcp_client.list_tools_sync()
             # print(mcp_tools)
-            agent = Agent(model=bedrock_model, tools=agent_internal_tools + mcp_tools)
+
+            agent_system_prompt = """You are a specialized assistant for creating, validating & running SFC configurations.
+            "Use your MCP (=main resource) and internal tools to gather required information.
+            "Always explain your reasoning and cite sources when possible."""
+
+            agent = Agent(model=bedrock_model, tools=agent_internal_tools + mcp_tools, system_prompt=agent_system_prompt)
         except Exception as e:
             print(e)
             agent = Agent(tools=agent_internal_tools)
@@ -441,6 +470,7 @@ class SFCWizardAgent:
         print("• 🏗️  Define required deployment environments")
         print("• 📚 Explain SFC concepts and components")
         print("• 📊 Visualize data from configurations with FILE-TARGET")
+        print("• 📝 Save conversation exchanges as markdown files")
         print("• 🚀 Type 'example' to run a sample configuration instantly")
         print()
         print("📋 Supported Protocols:")
@@ -498,6 +528,8 @@ class SFCWizardAgent:
                     # Process with Strands agent
                     try:
                         response = self.agent(user_input)
+                        # Record the conversation in the prompt logger
+                        self.prompt_logger.add_entry(user_input, response)
                         print(f"\n")
                         # Don't print response here as stdio_mcp_client already prints it
                         # print(f"\n{response}\n")
