@@ -6,6 +6,8 @@ Implements the agent loop as a web-based chat conversation.
 import asyncio
 import json
 import logging
+import os
+import secrets
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -26,6 +28,7 @@ class ChatUI:
 
         # Initialize Flask app
         self.app = Flask(__name__, template_folder="html", static_folder="html/assets")
+        self.app.secret_key = self._get_or_generate_secret_key()
 
         # Initialize SocketIO
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
@@ -51,6 +54,43 @@ class ChatUI:
             self.sfc_agent = SFCWizardAgent()
             self.agent_ready = True
             print("✅ SFC Wizard Agent initialized with MCP tools")
+
+    def _get_or_generate_secret_key(self) -> str:
+        """Get secret key from environment variable or generate a new one."""
+        # First, try to get from environment variable
+        secret_key = os.getenv("FLASK_SECRET_KEY")
+        
+        if secret_key:
+            return secret_key
+        
+        # If not in environment, try to read from .env file
+        env_file_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+        
+        # Check if .env file exists
+        if os.path.exists(env_file_path):
+            try:
+                with open(env_file_path, 'r') as f:
+                    content = f.read()
+                    
+                # Look for existing FLASK_SECRET_KEY in .env file
+                for line in content.split('\n'):
+                    if line.strip().startswith('FLASK_SECRET_KEY='):
+                        return line.split('=', 1)[1].strip()
+                
+                # If FLASK_SECRET_KEY not found in .env, generate and append it
+                new_secret_key = secrets.token_urlsafe(32)
+                with open(env_file_path, 'a') as f:
+                    f.write(f'\n# Flask Secret Key (auto-generated)\nFLASK_SECRET_KEY={new_secret_key}\n')
+                
+                print(f"✅ Generated new Flask secret key and saved to .env file")
+                return new_secret_key
+                
+            except Exception as e:
+                print(f"⚠️ Error reading/writing .env file: {e}")
+        
+        # If all else fails, generate a temporary secret key (not persistent)
+        print("⚠️ Using temporary secret key - sessions will not persist across restarts")
+        return secrets.token_urlsafe(32)
 
     def _setup_routes(self):
         """Setup Flask routes."""

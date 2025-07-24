@@ -136,7 +136,7 @@ sfc_wizard/
 
 ### Environment Variables
 
-The UI uses the same environment variables as the original SFC Wizard:
+The UI uses the same environment variables as the original SFC Wizard, plus additional UI-specific configuration:
 
 ```bash
 # Bedrock Model Configuration
@@ -146,7 +146,24 @@ BEDROCK_MODEL_ID=eu.anthropic.claude-3-7-sonnet-20250219-v1:0
 MCP_SERVER_COMMAND=uvx
 MCP_SERVER_ARGS=--from,git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=mcp-servers/sfc-spec-server
 MCP_SERVER_PATH=sfc_spec
+
+# Flask Secret Key (automatically generated during initialization)
+FLASK_SECRET_KEY=your-secure-key-here
 ```
+
+### Flask Secret Key
+
+The web interface requires a secure secret key for session management. This key is automatically generated during the initialization process:
+
+- **Automatic Generation**: When you run `./scripts/init.sh`, a cryptographically secure secret key is generated and added to your `.env` file
+- **Session Security**: The secret key ensures that user sessions are secure and cannot be tampered with
+- **Persistent Sessions**: With a proper secret key, user sessions will survive server restarts
+- **Per-Installation Unique**: Each installation gets its own unique secret key for security
+
+**Important Notes:**
+- Never commit your `.env` file containing the secret key to version control
+- If you lose your secret key, users will need to log in again (sessions will be invalidated) 
+- For production deployments, ensure the secret key is properly secured and backed up
 
 ### UI-Specific Settings
 
