@@ -410,7 +410,7 @@ class SFCWizardAgent:
                 read_config_from_file,
                 save_config_to_file,
                 run_sfc_config_locally,
-                # what_is_sfc,
+                what_is_sfc,
                 tail_logs,
                 clean_runs_folder,
                 confirm_clean_runs_folder,
@@ -421,8 +421,8 @@ class SFCWizardAgent:
             mcp_tools = stdio_mcp_client.list_tools_sync()
             # print(mcp_tools)
 
-            agent_system_prompt = """You are a specialized assistant for creating, validating & running SFC configurations.
-            "Use your MCP (=main resource) and internal tools to gather required information.
+            agent_system_prompt = """You are a specialized assistant for creating, validating & running SFC (stands for "Shop Floor Connectivity") configurations.
+            "Use your MCP (shall be your main resource for validation) and internal tools to gather required information.
             "Always explain your reasoning and cite sources when possible."""
 
             agent = Agent(
