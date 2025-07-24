@@ -12,7 +12,9 @@ from typing import Dict, List
 import sys
 import threading
 import time
+from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, session
 from flask_socketio import SocketIO, emit
 import threading
@@ -74,9 +76,10 @@ class StreamingOutputCapture:
 class ChatUI:
     """Web-based chat UI for SFC Wizard Agent."""
 
-    def __init__(self, host="127.0.0.1", port=5000):
+    def __init__(self, host="127.0.0.1", port=8080):
         self.host = host
-        self.port = port
+        # Get port from environment variable or use default
+        self.port = int(os.getenv("FLASK_PORT", port))
 
         # Initialize Flask app
         self.app = Flask(__name__, template_folder="html", static_folder="html/assets")
@@ -421,8 +424,22 @@ What would you like to do today?"""
 def main():
     """Main function to run the SFC Wizard Chat UI."""
     try:
+        # Load environment variables from .env file
+        env_path = Path(__file__).parent.parent / ".env"
+        if env_path.exists():
+            load_dotenv(dotenv_path=env_path)
+            print(f"✅ Loaded environment variables from {env_path}")
+        else:
+            # Try to load from repo root
+            repo_env_path = Path(__file__).parent.parent.parent.parent / ".env"
+            if repo_env_path.exists():
+                load_dotenv(dotenv_path=repo_env_path)
+                print(f"✅ Loaded environment variables from {repo_env_path}")
+            else:
+                print("ℹ️ No .env file found, using default environment variables")
+        
         with stdio_mcp_client:
-            chat_ui = ChatUI(host="127.0.0.1", port=5000)
+            chat_ui = ChatUI(host="127.0.0.1")
             # Initialize agent within MCP context
             chat_ui.initialize_agent()
             chat_ui.run(debug=False)
