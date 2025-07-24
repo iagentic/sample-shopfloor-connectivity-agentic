@@ -347,6 +347,39 @@ body {
     color: white;
 }
 
+/* Streaming styles */
+.message.streaming {
+    opacity: 0.9;
+}
+
+.streaming-content {
+    position: relative;
+}
+
+.streaming-cursor {
+    display: inline-block;
+    background: #4f46e5;
+    color: #4f46e5;
+    animation: blink 1s infinite;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 50% {
+        opacity: 1;
+    }
+    51%, 100% {
+        opacity: 0;
+    }
+}
+
+/* Streaming message gets a subtle glow effect */
+.message.streaming .message-content {
+    box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);
+    border-color: rgba(79, 70, 229, 0.3);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .chat-container {

@@ -3,20 +3,72 @@ UI module for SFC Wizard Agent Chat Interface.
 Implements the agent loop as a web-based chat conversation.
 """
 
-import asyncio
-import json
 import logging
 import os
 import secrets
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
+import sys
+import threading
+import time
 
 from flask import Flask, render_template, request, jsonify, session
 from flask_socketio import SocketIO, emit
 import threading
 
 from .agent import SFCWizardAgent, stdio_mcp_client
+
+
+class StreamingOutputCapture:
+    """Capture and stream stdout/stderr output in real-time."""
+
+    def __init__(
+        self, socketio, session_id, original_stdout=None, original_stderr=None
+    ):
+        self.socketio = socketio
+        self.session_id = session_id
+        self.original_stdout = original_stdout or sys.stdout
+        self.original_stderr = original_stderr or sys.stderr
+        self.accumulated_output = ""
+        self.last_emit_time = time.time()
+        self.emit_interval = 0.1  # Emit every 100ms
+
+    def write(self, text):
+        """Write method for capturing output."""
+        if text.strip():  # Only process non-empty text
+            self.accumulated_output += text
+            current_time = time.time()
+
+            # Emit accumulated output if enough time has passed or it's a significant chunk
+            if (current_time - self.last_emit_time) >= self.emit_interval or len(
+                self.accumulated_output
+            ) > 100:
+                self.emit_partial_response()
+                self.last_emit_time = current_time
+
+        # Also write to original stdout/stderr
+        self.original_stdout.write(text)
+        return len(text)
+
+    def emit_partial_response(self):
+        """Emit partial response to the client."""
+        if self.accumulated_output.strip():
+            self.socketio.emit(
+                "agent_streaming",
+                {
+                    "content": self.accumulated_output,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                room=self.session_id,
+            )
+            self.accumulated_output = ""
+
+    def flush(self):
+        """Flush any remaining output."""
+        if self.accumulated_output.strip():
+            self.emit_partial_response()
+        self.original_stdout.flush()
 
 
 class ChatUI:
@@ -59,37 +111,41 @@ class ChatUI:
         """Get secret key from environment variable or generate a new one."""
         # First, try to get from environment variable
         secret_key = os.getenv("FLASK_SECRET_KEY")
-        
+
         if secret_key:
             return secret_key
-        
+
         # If not in environment, try to read from .env file
         env_file_path = os.path.join(os.path.dirname(__file__), "..", ".env")
-        
+
         # Check if .env file exists
         if os.path.exists(env_file_path):
             try:
-                with open(env_file_path, 'r') as f:
+                with open(env_file_path, "r") as f:
                     content = f.read()
-                    
+
                 # Look for existing FLASK_SECRET_KEY in .env file
-                for line in content.split('\n'):
-                    if line.strip().startswith('FLASK_SECRET_KEY='):
-                        return line.split('=', 1)[1].strip()
-                
+                for line in content.split("\n"):
+                    if line.strip().startswith("FLASK_SECRET_KEY="):
+                        return line.split("=", 1)[1].strip()
+
                 # If FLASK_SECRET_KEY not found in .env, generate and append it
                 new_secret_key = secrets.token_urlsafe(32)
-                with open(env_file_path, 'a') as f:
-                    f.write(f'\n# Flask Secret Key (auto-generated)\nFLASK_SECRET_KEY={new_secret_key}\n')
-                
+                with open(env_file_path, "a") as f:
+                    f.write(
+                        f"\n# Flask Secret Key (auto-generated)\nFLASK_SECRET_KEY={new_secret_key}\n"
+                    )
+
                 print(f"✅ Generated new Flask secret key and saved to .env file")
                 return new_secret_key
-                
+
             except Exception as e:
                 print(f"⚠️ Error reading/writing .env file: {e}")
-        
+
         # If all else fails, generate a temporary secret key (not persistent)
-        print("⚠️ Using temporary secret key - sessions will not persist across restarts")
+        print(
+            "⚠️ Using temporary secret key - sessions will not persist across restarts"
+        )
         return secrets.token_urlsafe(32)
 
     def _setup_routes(self):
@@ -212,15 +268,42 @@ class ChatUI:
 
             # Process message with agent in background thread
             def process_agent_response(sid):
+                streaming_capture = None
                 try:
                     # Emit typing indicator
                     self.socketio.emit("agent_typing", {"typing": True}, room=sid)
 
-                    # Process with SFC Agent (this is where the agent loop happens)
-                    response = self.sfc_agent.agent(user_message)
+                    # Signal start of streaming response
+                    self.socketio.emit("agent_streaming_start", {}, room=sid)
+
+                    # Create streaming output capture
+                    streaming_capture = StreamingOutputCapture(self.socketio, sid)
+
+                    # Capture stdout and stderr for streaming
+                    original_stdout = sys.stdout
+                    original_stderr = sys.stderr
+
+                    try:
+                        # Redirect stdout and stderr to our streaming capture
+                        sys.stdout = streaming_capture
+                        sys.stderr = streaming_capture
+
+                        # Process with SFC Agent (this is where the agent loop happens)
+                        response = self.sfc_agent.agent(user_message)
+
+                        # Ensure any remaining output is flushed
+                        streaming_capture.flush()
+
+                    finally:
+                        # Always restore original stdout/stderr
+                        sys.stdout = original_stdout
+                        sys.stderr = original_stderr
 
                     # Format the response for UI display
                     formatted_response = self.sfc_agent._format_output(str(response))
+
+                    # Signal end of streaming
+                    self.socketio.emit("agent_streaming_end", {}, room=sid)
 
                     # Create response message
                     agent_msg = {
@@ -232,10 +315,15 @@ class ChatUI:
                     # Add to conversation history
                     self.conversations[session_id].append(agent_msg)
 
-                    # Send response to client
+                    # Send final response to client
                     self.socketio.emit("agent_response", agent_msg, room=sid)
 
                 except Exception as e:
+                    # Ensure streaming is ended even on error
+                    if streaming_capture:
+                        streaming_capture.flush()
+                    self.socketio.emit("agent_streaming_end", {}, room=sid)
+
                     error_msg = {
                         "role": "assistant",
                         "content": f"❌ Error processing request: {str(e)}\nPlease try rephrasing your question or check your configuration.",

@@ -14,6 +14,12 @@ class SFCWizardChat {
             emoji: true
         });
         
+        // Streaming state
+        this.streamingMessageDiv = null;
+        this.streamingContentDiv = null;
+        this.streamingAccumulatedText = '';
+        this.isStreaming = false;
+        
         this.setupFormHandlers();
         this.showInitializingMessage();
         this.waitForAgentReady();
@@ -110,6 +116,19 @@ class SFCWizardChat {
             } else {
                 this.hideTypingIndicator();
             }
+        });
+
+        // Handle streaming events
+        this.socket.on('agent_streaming_start', () => {
+            this.startStreaming();
+        });
+
+        this.socket.on('agent_streaming', (data) => {
+            this.updateStreamingMessage(data.content);
+        });
+
+        this.socket.on('agent_streaming_end', () => {
+            this.endStreaming();
         });
 
         this.socket.on('conversation_cleared', (data) => {
@@ -247,6 +266,83 @@ class SFCWizardChat {
                 return `<pre><code>${jsonContent}</code></pre>`;
             }
         });
+    }
+
+    // Streaming methods
+    startStreaming() {
+        if (this.isStreaming) return; // Already streaming
+        
+        this.isStreaming = true;
+        this.streamingAccumulatedText = '';
+        
+        // Create a temporary streaming message div
+        this.streamingMessageDiv = document.createElement('div');
+        this.streamingMessageDiv.className = 'message assistant streaming';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        avatar.innerHTML = '<i class="fas fa-robot"></i>';
+
+        this.streamingContentDiv = document.createElement('div');
+        this.streamingContentDiv.className = 'message-content streaming-content';
+        this.streamingContentDiv.innerHTML = '<span class="streaming-cursor">▊</span>';
+
+        const timestamp = document.createElement('div');
+        timestamp.className = 'timestamp';
+        timestamp.textContent = this.formatTime(new Date().toISOString());
+
+        this.streamingMessageDiv.appendChild(avatar);
+        this.streamingMessageDiv.appendChild(this.streamingContentDiv);
+        this.streamingContentDiv.appendChild(timestamp);
+
+        this.messagesContainer.appendChild(this.streamingMessageDiv);
+        this.scrollToBottom();
+    }
+
+    updateStreamingMessage(content) {
+        if (!this.isStreaming || !this.streamingContentDiv) return;
+
+        this.streamingAccumulatedText += content;
+        
+        // Update the content with streaming cursor
+        const processedContent = this.processJsonBlocks(this.streamingAccumulatedText);
+        const htmlContent = this.markdownConverter.makeHtml(processedContent);
+        
+        // Find the timestamp element to preserve it
+        const timestamp = this.streamingContentDiv.querySelector('.timestamp');
+        
+        // Update content while preserving timestamp
+        this.streamingContentDiv.innerHTML = htmlContent + '<span class="streaming-cursor">▊</span>';
+        
+        if (timestamp) {
+            this.streamingContentDiv.appendChild(timestamp);
+        }
+        
+        this.scrollToBottom();
+    }
+
+    endStreaming() {
+        if (!this.isStreaming) return;
+        
+        this.isStreaming = false;
+        
+        // Remove streaming cursor and styling
+        if (this.streamingContentDiv) {
+            const cursor = this.streamingContentDiv.querySelector('.streaming-cursor');
+            if (cursor) {
+                cursor.remove();
+            }
+            this.streamingContentDiv.classList.remove('streaming-content');
+        }
+        
+        if (this.streamingMessageDiv) {
+            this.streamingMessageDiv.classList.remove('streaming');
+        }
+        
+        // Reset streaming state
+        this.streamingMessageDiv = null;
+        this.streamingContentDiv = null;
+        this.streamingAccumulatedText = '';
     }
 }
 
