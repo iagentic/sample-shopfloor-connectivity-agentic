@@ -397,7 +397,7 @@ class SFCWizardAgent:
         try:
             # Get model ID from environment variable with default value if not set
             model_id = os.getenv(
-                "BEDROCK_MODEL_ID", "eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
+                "BEDROCK_MODEL_ID", "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
             )
             bedrock_model = BedrockModel(model_id=model_id)
             agent_internal_tools = [
