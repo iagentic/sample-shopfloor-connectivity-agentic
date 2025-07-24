@@ -123,7 +123,7 @@ class SFCWizardAgent:
 
     def _format_output(self, content: str) -> str:
         """Format output based on the current usage mode.
-        
+
         For UI mode, the content is returned as-is as markdown, which will be processed
         by the Showdown.js library on the client side.
         For CLI mode, the content is also returned as-is to preserve terminal formatting.
