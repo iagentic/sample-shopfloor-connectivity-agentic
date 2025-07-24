@@ -96,7 +96,9 @@ class DataVisualizer:
 
         return values, timestamps
 
-    def _prepare_data(self, data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None) -> bool:
+    def _prepare_data(
+        self, data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None
+    ) -> bool:
         """Load and prepare data for visualization"""
         # Load all data files
         all_data = self._load_data_files(data_dir)
@@ -122,14 +124,16 @@ class DataVisualizer:
                     except (ValueError, TypeError, AttributeError):
                         # Skip invalid timestamps
                         datetime_objects.append(None)
-                
+
                 # Filter out None values and find latest time
                 valid_datetimes = [dt for dt in datetime_objects if dt is not None]
                 if valid_datetimes:
                     latest_time = max(valid_datetimes)
                     # Calculate cutoff time
-                    cutoff_time = latest_time - datetime.timedelta(seconds=timeframe_seconds)
-                    
+                    cutoff_time = latest_time - datetime.timedelta(
+                        seconds=timeframe_seconds
+                    )
+
                     # Filter data points within the timeframe
                     filtered_data = []
                     filtered_timestamps = []
@@ -137,7 +141,7 @@ class DataVisualizer:
                         if dt is not None and dt >= cutoff_time:
                             filtered_data.append(values[i])
                             filtered_timestamps.append(timestamps[i])
-                    
+
                     # Update values and timestamps if we have filtered data
                     if filtered_data:
                         values = filtered_data
@@ -145,7 +149,7 @@ class DataVisualizer:
             except Exception as e:
                 # If there's an error in filtering, fall back to using all data
                 print(f"Error filtering by timeframe: {str(e)}")
-        
+
         # Store the data
         self.data_points = values
         self.timestamps = timestamps
@@ -297,7 +301,9 @@ class DataVisualizer:
 
                         if last_px is not None and last_py is not None:
                             # Draw very thin line (dots) - pass floating point values to drawing function
-                            self._draw_line(win, last_py, last_px, py_bounded, px_bounded, "·")
+                            self._draw_line(
+                                win, last_py, last_px, py_bounded, px_bounded, "·"
+                            )
 
                         last_px, last_py = px_bounded, py_bounded
 
@@ -340,20 +346,20 @@ class DataVisualizer:
         """Draw a line between two points with high precision using floating point calculations"""
         # Convert to float to ensure floating point division
         x0, y0, x1, y1 = float(x0), float(y0), float(x1), float(y1)
-        
+
         # Determine if the line is steep (|slope| > 1)
         steep = abs(y1 - y0) > abs(x1 - x0)
-        
+
         if steep:
             # If steep, swap x and y
             x0, y0 = y0, x0
             x1, y1 = y1, x1
-            
+
         # Ensure x is increasing
         if x0 > x1:
             x0, x1 = x1, x0
             y0, y1 = y1, y0
-            
+
         # Calculate dx and slope
         dx = x1 - x0
         if dx == 0:
@@ -361,14 +367,14 @@ class DataVisualizer:
             slope = 0  # Arbitrary, as we'll handle it specially
         else:
             slope = (y1 - y0) / dx
-            
+
         # For high precision drawing, use smaller steps
         # The smaller the step size, the more accurate the line
         step_size = 0.5  # Smaller step size for higher density
-        
+
         # Track points already drawn to avoid duplicates
         drawn_points = set()
-        
+
         # Draw the line using floating point stepping
         x = x0
         y = y0
@@ -378,7 +384,7 @@ class DataVisualizer:
                 plot_x, plot_y = int(round(y)), int(round(x))
             else:
                 plot_x, plot_y = int(round(x)), int(round(y))
-                
+
             # Only draw if we haven't already drawn at this position
             point = (plot_y, plot_x)
             if point not in drawn_points:
@@ -387,12 +393,14 @@ class DataVisualizer:
                     win.addch(plot_y, plot_x, char)
                 except:
                     pass
-                    
+
             # Step along the line
             x += step_size
             y += slope * step_size
 
-    def visualize(self, data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None) -> str:
+    def visualize(
+        self, data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None
+    ) -> str:
         """
         Visualize time series data using ncurses
 
@@ -409,14 +417,22 @@ class DataVisualizer:
         self.data_dir = data_dir
         self.jmespath_expr = jmespath_expr
         self.current_timeframe = timeframe_seconds
-        
+
         # Prepare the data
         if not self._prepare_data(data_dir, jmespath_expr, timeframe_seconds):
-            timeframe_msg = f" for the last {timeframe_seconds} seconds" if timeframe_seconds else ""
+            timeframe_msg = (
+                f" for the last {timeframe_seconds} seconds"
+                if timeframe_seconds
+                else ""
+            )
             return f"❌ Failed to prepare data from {data_dir} using expression '{jmespath_expr}'{timeframe_msg}"
 
         if not self.data_points:
-            timeframe_msg = f" for the last {timeframe_seconds} seconds" if timeframe_seconds else ""
+            timeframe_msg = (
+                f" for the last {timeframe_seconds} seconds"
+                if timeframe_seconds
+                else ""
+            )
             return f"❌ No data points found in {data_dir} using expression '{jmespath_expr}'{timeframe_msg}"
 
         # Initialize ncurses
@@ -481,43 +497,43 @@ class DataVisualizer:
         # Refresh and wait for keypress
         stdscr.refresh()
         key = stdscr.getch()
-        
+
         # If user presses 't' or 'T', show timeframe selection menu
         if key in [116, 84]:  # ASCII for 't' and 'T'
             return self._show_timeframe_menu(stdscr)
-            
+
         return f"✅ Successfully visualized {len(self.data_points)} data points from expression: '{self.title}'"
-    
+
     def _show_timeframe_menu(self, stdscr):
         """Show a menu for selecting different timeframes"""
         # Define available timeframe options (in seconds)
         timeframes = [15, 30, 60, 120, 300, 0]  # 0 means all data
-        
+
         # Clear screen
         stdscr.clear()
         height, width = stdscr.getmaxyx()
-        
+
         # Draw border
         stdscr.box()
-        
+
         # Draw title
         title = "Select Timeframe"
         stdscr.addstr(1, (width - len(title)) // 2, title, curses.A_BOLD)
-        
+
         # Draw instructions
         instruction = "Use arrow keys to select, Enter to confirm"
         stdscr.addstr(3, (width - len(instruction)) // 2, instruction)
-        
+
         # Prepare timeframe labels
         timeframe_labels = [
-            "Last 15 seconds", 
-            "Last 30 seconds", 
-            "Last 1 minute", 
+            "Last 15 seconds",
+            "Last 30 seconds",
+            "Last 1 minute",
             "Last 2 minutes",
             "Last 5 minutes",
-            "All data"
+            "All data",
         ]
-        
+
         # Find current selection index (if applicable)
         current_option = 0
         if self.current_timeframe is not None:
@@ -528,26 +544,26 @@ class DataVisualizer:
                 pass
         else:
             current_option = len(timeframes) - 1  # "All data" option
-        
+
         # Main menu loop
         while True:
             # Display all options
             for i, label in enumerate(timeframe_labels):
                 y = 5 + i
                 x = (width - len(label)) // 2
-                
+
                 # Highlight the selected option
                 if i == current_option:
                     stdscr.attron(curses.A_REVERSE)
-                    
+
                 stdscr.addstr(y, x, label)
-                
+
                 if i == current_option:
                     stdscr.attroff(curses.A_REVERSE)
-            
+
             # Handle key presses
             key = stdscr.getch()
-            
+
             if key == curses.KEY_UP and current_option > 0:
                 current_option -= 1
             elif key == curses.KEY_DOWN and current_option < len(timeframe_labels) - 1:
@@ -555,15 +571,19 @@ class DataVisualizer:
             elif key in [10, 13]:  # Enter key
                 # User made a selection
                 selected_timeframe = timeframes[current_option]
-                
+
                 # Return to visualization with the new timeframe
                 if selected_timeframe == 0:  # All data
                     self._prepare_data(self.data_dir, self.jmespath_expr)
                 else:
-                    self._prepare_data(self.data_dir, self.jmespath_expr, selected_timeframe)
-                
-                self.current_timeframe = selected_timeframe if selected_timeframe > 0 else None
-                
+                    self._prepare_data(
+                        self.data_dir, self.jmespath_expr, selected_timeframe
+                    )
+
+                self.current_timeframe = (
+                    selected_timeframe if selected_timeframe > 0 else None
+                )
+
                 # Redraw the visualization
                 stdscr.clear()
                 return self._visualize_with_curses(stdscr)
@@ -573,7 +593,9 @@ class DataVisualizer:
                 return self._visualize_with_curses(stdscr)
 
 
-def visualize_time_series(data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None) -> str:
+def visualize_time_series(
+    data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None
+) -> str:
     """
     Visualize time series data from SFC data files
 
@@ -605,16 +627,25 @@ def visualize_time_series(data_dir: str, jmespath_expr: str, timeframe_seconds: 
 if __name__ == "__main__":
     import sys
     import argparse
-    
+
     # Set up command-line argument parsing
-    parser = argparse.ArgumentParser(description='Visualize time series data from SFC data files')
-    parser.add_argument('data_dir', help='Directory containing the JSON data files')
-    parser.add_argument('jmespath_expr', help='JMESPath expression to extract the value to plot')
-    parser.add_argument('--timeframe', '-t', type=int, help='Timeframe in seconds to display (e.g., 15, 30)')
-    
+    parser = argparse.ArgumentParser(
+        description="Visualize time series data from SFC data files"
+    )
+    parser.add_argument("data_dir", help="Directory containing the JSON data files")
+    parser.add_argument(
+        "jmespath_expr", help="JMESPath expression to extract the value to plot"
+    )
+    parser.add_argument(
+        "--timeframe",
+        "-t",
+        type=int,
+        help="Timeframe in seconds to display (e.g., 15, 30)",
+    )
+
     # Parse arguments
     args = parser.parse_args()
-    
+
     # Run visualization
     result = visualize_time_series(args.data_dir, args.jmespath_expr, args.timeframe)
     print(result)

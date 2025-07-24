@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFC Wizard Chat</title>
+    <script src="assets/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🏭 SFC Wizard Chat</h1>
+            <p>Industrial Data Connectivity Assistant</p>
+            <button class="clear-btn" onclick="clearConversation()" title="Clear conversation">
+                <i class="fas fa-broom"></i>
+            </button>
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            <!-- Messages will be populated here -->
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <form class="input-form" id="messageForm">
+                <input type="text" class="message-input" id="messageInput" 
+                       placeholder="Initializing agent... Please wait..." 
+                       maxlength="1000" autocomplete="off" disabled>
+                <button type="submit" class="send-btn" id="sendBtn" disabled>
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="assets/script.js"></script>
+</body>
+</html>

@@ -11,6 +11,8 @@ import os
 import json
 import threading
 import queue
+import inspect
+import html
 from dotenv import load_dotenv
 
 # Import the externalized functions
@@ -47,7 +49,10 @@ def _create_mcp_client():
 
     # NOTE: Use .env file at repo-root for local dev setup (copy 1:1 from .env.template as a start...)
     mcp_command = os.getenv("MCP_SERVER_COMMAND", "uvx")
-    mcp_args_str = os.getenv("MCP_SERVER_ARGS", "--from,git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=mcp-servers/sfc-spec-server")
+    mcp_args_str = os.getenv(
+        "MCP_SERVER_ARGS",
+        "--from,git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=mcp-servers/sfc-spec-server",
+    )
     mcp_path = os.getenv("MCP_SERVER_PATH", "sfc_spec")
 
     # Parse comma-separated args and add the path
@@ -94,13 +99,44 @@ class SFCWizardAgent:
         self.recommendations = []
         # Track active SFC processes for cleanup
         self.active_processes = []
-        
+
         # Initialize the prompt logger
         self.prompt_logger = PromptLogger(max_history=20, log_dir="conversation_logs")
 
-        # Initialize the Strands agent with SFC-specific tools
+        # Detect the running mode (UI or CLI)
+        self.is_ui_mode = self._detect_ui_mode()
 
+        # Initialize the Strands agent with SFC-specific tools
         self.agent = self._create_agent()
+
+    def _detect_ui_mode(self) -> bool:
+        """Detect if the agent is running in UI mode or CLI mode.
+
+        Returns:
+            bool: True if running in UI mode, False if running in CLI mode
+        """
+        # Check the call stack to determine if we're being called from the UI module
+        for frame_info in inspect.stack():
+            if "ui.py" in frame_info.filename or "sfc_wizard.ui" in frame_info.filename:
+                return True
+        return False
+
+    def _format_output(self, content: str) -> str:
+        """Format output based on the current usage mode.
+
+        For UI mode, the content is returned as-is as markdown, which will be processed
+        by the Showdown.js library on the client side.
+        For CLI mode, the content is also returned as-is to preserve terminal formatting.
+
+        Args:
+            content: The content to format
+
+        Returns:
+            str: Formatted content suitable for the current mode
+        """
+        # No special formatting needed anymore as we're using Showdown.js for UI mode
+        # and keeping CLI content as-is
+        return content
 
     # _load_sfc_knowledge method has been externalized to src/tools/sfc_knowledge.py
 
@@ -135,21 +171,24 @@ class SFCWizardAgent:
 
                 # Return validation results
                 if not is_valid:
-                    return f"❌ Configuration validation failed:\n" + "\n".join(
+                    result = f"❌ Configuration validation failed:\n" + "\n".join(
                         self.validation_errors
                     )
+                    return self._format_output(result)
                 else:
                     result = "✅ Configuration is valid!"
                     if self.recommendations:
                         result += "\n\n💡 Recommendations:\n" + "\n".join(
                             self.recommendations
                         )
-                    return result
+                    return self._format_output(result)
 
             except json.JSONDecodeError as e:
-                return f"❌ Invalid JSON format: {str(e)}"
+                result = f"❌ Invalid JSON format: {str(e)}"
+                return self._format_output(result)
             except Exception as e:
-                return f"❌ Validation error: {str(e)}"
+                result = f"❌ Validation error: {str(e)}"
+                return self._format_output(result)
 
         @tool
         def create_sfc_config_template(
@@ -162,9 +201,10 @@ class SFCWizardAgent:
                 target: Target service (e.g., AWS-S3, AWS-IOT-CORE, DEBUG)
                 environment: Environment type (development, production)
             """
-            return generate_config_template(
+            result = generate_config_template(
                 protocol.upper(), target.upper(), environment, self.sfc_knowledge
             )
+            return self._format_output(result)
 
         @tool
         def diagnose_sfc_issue(issue_description: str, config_json: str = "") -> str:
@@ -308,37 +348,39 @@ class SFCWizardAgent:
                 minutes=minutes,
                 jmespath_expr=jmespath_expr,
             )
-            
+
         @tool
         def run_example(input_text: str) -> str:
             """Run the example SFC configuration when receiving 'example' as input.
-            
+
             Args:
                 input_text: The text input from the user
             """
             if input_text.lower().strip() == "example":
                 # Path to the example config file
                 example_config_path = "sfc-config-example.json"
-                
+
                 try:
                     # Read the example config file
-                    with open(example_config_path, 'r') as f:
+                    with open(example_config_path, "r") as f:
                         config_json = f.read()
-                    
+
                     # Run the example configuration using the existing tool
                     return self._run_sfc_config_locally(config_json, "example-config")
                 except Exception as e:
-                    return f"❌ Error running example configuration: {str(e)}"
+                    result = f"❌ Error running example configuration: {str(e)}"
+                    return self._format_output(result)
             else:
-                return f"Input '{input_text}' not recognized as 'example'. No action taken."
-                
+                result = f"Input '{input_text}' not recognized as 'example'. No action taken."
+                return self._format_output(result)
+
         @tool
         def save_conversation(count: int = 1) -> str:
             """Save the last N conversation exchanges as markdown files.
-            
+
             Each file contains a user prompt and the agent's response, formatted in markdown.
             The filename is generated based on the content of the prompt.
-            
+
             Args:
                 count: Number of recent conversations to save (default: 1)
             """
@@ -354,10 +396,10 @@ class SFCWizardAgent:
         # Create agent with SFC-specific tools
         try:
             # Get model ID from environment variable with default value if not set
-            model_id = os.getenv("BEDROCK_MODEL_ID", "eu.anthropic.claude-3-7-sonnet-20250219-v1:0")
-            bedrock_model = BedrockModel(
-                model_id=model_id
+            model_id = os.getenv(
+                "BEDROCK_MODEL_ID", "eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
             )
+            bedrock_model = BedrockModel(model_id=model_id)
             agent_internal_tools = [
                 validate_sfc_config,
                 create_sfc_config_template,
@@ -383,7 +425,11 @@ class SFCWizardAgent:
             "Use your MCP (=main resource) and internal tools to gather required information.
             "Always explain your reasoning and cite sources when possible."""
 
-            agent = Agent(model=bedrock_model, tools=agent_internal_tools + mcp_tools, system_prompt=agent_system_prompt)
+            agent = Agent(
+                model=bedrock_model,
+                tools=agent_internal_tools + mcp_tools,
+                system_prompt=agent_system_prompt,
+            )
         except Exception as e:
             print(e)
             agent = Agent(tools=agent_internal_tools)
@@ -434,7 +480,7 @@ class SFCWizardAgent:
         self.active_processes = updated_processes
         self.log_tail_thread = updated_log_tail_thread
 
-        return result
+        return self._format_output(result)
 
     # _analyze_sfc_config_for_modules method has been externalized to src/tools/sfc_module_analyzer.py
 
