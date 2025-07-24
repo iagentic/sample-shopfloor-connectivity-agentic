@@ -14,7 +14,7 @@ from flask import Flask, render_template, request, jsonify, session
 from flask_socketio import SocketIO, emit
 import threading
 
-from .agent import SFCWizardAgent
+from .agent import SFCWizardAgent, stdio_mcp_client
 
 
 class ChatUI:
@@ -36,8 +36,8 @@ class ChatUI:
         # Store conversation history per session
         self.conversations: Dict[str, List[Dict]] = {}
         
-        # Initialize SFC Wizard Agent
-        self.sfc_agent = SFCWizardAgent()
+        # SFC Wizard Agent will be initialized later within MCP context
+        self.sfc_agent = None
         
         # Setup routes and socket handlers
         self._setup_routes()
@@ -46,6 +46,12 @@ class ChatUI:
         # Configure logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+
+    def initialize_agent(self):
+        """Initialize the SFC Wizard Agent within MCP context."""
+        if self.sfc_agent is None:
+            self.sfc_agent = SFCWizardAgent()
+            print("✅ SFC Wizard Agent initialized with MCP tools")
 
     def _setup_routes(self):
         """Setup Flask routes."""
@@ -242,16 +248,21 @@ What would you like to do today?"""
         finally:
             # Cleanup SFC processes
             print("🧹 Cleaning up SFC processes...")
-            self.sfc_agent._cleanup_processes()
+            if self.sfc_agent:
+                self.sfc_agent._cleanup_processes()
 
 
 def main():
     """Main function to run the SFC Wizard Chat UI."""
     try:
-        chat_ui = ChatUI(host='127.0.0.1', port=5000)
-        chat_ui.run(debug=False)
+        with stdio_mcp_client:
+            chat_ui = ChatUI(host='127.0.0.1', port=5000)
+            # Initialize agent within MCP context
+            chat_ui.initialize_agent()
+            chat_ui.run(debug=False)
     except Exception as e:
         print(f"Error starting SFC Wizard Chat UI: {str(e)}")
+        print("Please make sure all dependencies are installed by running 'scripts/init.sh'")
 
 
 if __name__ == "__main__":
