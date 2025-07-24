@@ -26,7 +26,6 @@ class ChatUI:
 
         # Initialize Flask app
         self.app = Flask(__name__, template_folder="html", static_folder="html/assets")
-        self.app.secret_key = "sfc-wizard-secret-key-change-this"
 
         # Initialize SocketIO
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
