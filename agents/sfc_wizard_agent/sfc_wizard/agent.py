@@ -49,7 +49,10 @@ def _create_mcp_client():
 
     # NOTE: Use .env file at repo-root for local dev setup (copy 1:1 from .env.template as a start...)
     mcp_command = os.getenv("MCP_SERVER_COMMAND", "uvx")
-    mcp_args_str = os.getenv("MCP_SERVER_ARGS", "--from,git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=mcp-servers/sfc-spec-server")
+    mcp_args_str = os.getenv(
+        "MCP_SERVER_ARGS",
+        "--from,git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=mcp-servers/sfc-spec-server",
+    )
     mcp_path = os.getenv("MCP_SERVER_PATH", "sfc_spec")
 
     # Parse comma-separated args and add the path
@@ -96,7 +99,7 @@ class SFCWizardAgent:
         self.recommendations = []
         # Track active SFC processes for cleanup
         self.active_processes = []
-        
+
         # Initialize the prompt logger
         self.prompt_logger = PromptLogger(max_history=20, log_dir="conversation_logs")
 
@@ -108,22 +111,22 @@ class SFCWizardAgent:
 
     def _detect_ui_mode(self) -> bool:
         """Detect if the agent is running in UI mode or CLI mode.
-        
+
         Returns:
             bool: True if running in UI mode, False if running in CLI mode
         """
         # Check the call stack to determine if we're being called from the UI module
         for frame_info in inspect.stack():
-            if 'ui.py' in frame_info.filename or 'sfc_wizard.ui' in frame_info.filename:
+            if "ui.py" in frame_info.filename or "sfc_wizard.ui" in frame_info.filename:
                 return True
         return False
 
     def _format_output(self, content: str) -> str:
         """Format output based on the current usage mode.
-        
+
         Args:
             content: The content to format
-            
+
         Returns:
             str: Formatted content suitable for the current mode
         """
@@ -134,80 +137,84 @@ class SFCWizardAgent:
 
     def _format_for_ui(self, content: str) -> str:
         """Format content for UI mode (HTML-friendly).
-        
+
         Args:
             content: The content to format
-            
+
         Returns:
             str: HTML-friendly formatted content
         """
         import re
         import json
-        
+
         # First, try to detect and format JSON objects
         formatted = self._format_json_objects(content)
-        
+
         # Escape HTML special characters (but preserve any JSON formatting we just added)
         formatted = self._escape_html_preserve_json(formatted)
-        
+
         # Convert line breaks to HTML line breaks
-        formatted = formatted.replace('\n', '<br>')
-        
+        formatted = formatted.replace("\n", "<br>")
+
         # Convert markdown-style formatting to HTML
         # Bold text (e.g., **text** or __text__)
-        formatted = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', formatted)
-        formatted = re.sub(r'__(.*?)__', r'<strong>\1</strong>', formatted)
-        
+        formatted = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", formatted)
+        formatted = re.sub(r"__(.*?)__", r"<strong>\1</strong>", formatted)
+
         # Italic text (e.g., *text* or _text_)
-        formatted = re.sub(r'(?<!\*)\*([^*]+)\*(?!\*)', r'<em>\1</em>', formatted)
-        formatted = re.sub(r'(?<!_)_([^_]+)_(?!_)', r'<em>\1</em>', formatted)
-        
+        formatted = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", formatted)
+        formatted = re.sub(r"(?<!_)_([^_]+)_(?!_)", r"<em>\1</em>", formatted)
+
         # Code blocks (e.g., `code`)
-        formatted = re.sub(r'`([^`]+)`', r'<code>\1</code>', formatted)
-        
+        formatted = re.sub(r"`([^`]+)`", r"<code>\1</code>", formatted)
+
         # Headers (e.g., ## Header)
-        formatted = re.sub(r'^### (.+)$', r'<h3>\1</h3>', formatted, flags=re.MULTILINE)
-        formatted = re.sub(r'^## (.+)$', r'<h2>\1</h2>', formatted, flags=re.MULTILINE)
-        formatted = re.sub(r'^# (.+)$', r'<h1>\1</h1>', formatted, flags=re.MULTILINE)
-        
+        formatted = re.sub(r"^### (.+)$", r"<h3>\1</h3>", formatted, flags=re.MULTILINE)
+        formatted = re.sub(r"^## (.+)$", r"<h2>\1</h2>", formatted, flags=re.MULTILINE)
+        formatted = re.sub(r"^# (.+)$", r"<h1>\1</h1>", formatted, flags=re.MULTILINE)
+
         # Lists (simple bullet points)
-        formatted = re.sub(r'^• (.+)$', r'<li>\1</li>', formatted, flags=re.MULTILINE)
-        formatted = re.sub(r'^- (.+)$', r'<li>\1</li>', formatted, flags=re.MULTILINE)
-        
+        formatted = re.sub(r"^• (.+)$", r"<li>\1</li>", formatted, flags=re.MULTILINE)
+        formatted = re.sub(r"^- (.+)$", r"<li>\1</li>", formatted, flags=re.MULTILINE)
+
         # Wrap consecutive <li> elements in <ul>
-        formatted = re.sub(r'(<li>.*?</li>)(\s*<li>.*?</li>)*', 
-                          lambda m: '<ul>' + m.group(0) + '</ul>', formatted)
-        
+        formatted = re.sub(
+            r"(<li>.*?</li>)(\s*<li>.*?</li>)*",
+            lambda m: "<ul>" + m.group(0) + "</ul>",
+            formatted,
+        )
+
         return formatted
 
     def _format_json_objects(self, content: str) -> str:
         """Detect and format JSON objects in the content.
-        
+
         Args:
             content: The content to search for JSON objects
-            
+
         Returns:
             str: Content with JSON objects formatted as copyable code blocks
         """
         import re
         import json
-        
+
         # Pattern to match JSON objects (simple heuristic)
-        json_pattern = r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})'
-        
+        json_pattern = r"(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})"
+
         def format_json_match(match):
             json_str = match.group(1)
             try:
                 # Try to parse and format the JSON
                 parsed = json.loads(json_str)
                 formatted_json = json.dumps(parsed, indent=2)
-                
+
                 # Generate a unique ID for the copy button
                 import uuid
+
                 json_id = f"json_{uuid.uuid4().hex[:8]}"
-                
+
                 # Create formatted JSON block with copy button
-                return f'''<div class="json-container">
+                return f"""<div class="json-container">
 <div class="json-header">
 <span class="json-label">JSON Configuration</span>
 <button class="copy-json-btn" onclick="copyJsonToClipboard('{json_id}')" title="Copy JSON">
@@ -215,53 +222,53 @@ class SFCWizardAgent:
 </button>
 </div>
 <pre class="json-code" id="{json_id}"><code>{formatted_json}</code></pre>
-</div>'''
+</div>"""
             except (json.JSONDecodeError, ValueError):
                 # If it's not valid JSON, return as-is
                 return json_str
-        
+
         # Replace JSON objects with formatted versions
         formatted_content = re.sub(json_pattern, format_json_match, content)
-        
+
         return formatted_content
 
     def _escape_html_preserve_json(self, content: str) -> str:
         """Escape HTML special characters while preserving JSON formatting blocks.
-        
+
         Args:
             content: The content to escape
-            
+
         Returns:
             str: HTML-escaped content with JSON blocks preserved
         """
         import re
-        
+
         # Find all JSON containers and temporarily replace them
         json_containers = []
         json_pattern = r'(<div class="json-container">.*?</div>)'
-        
+
         def store_json_container(match):
             json_containers.append(match.group(1))
             return f"__JSON_PLACEHOLDER_{len(json_containers)-1}__"
-        
+
         # Store JSON containers
         content = re.sub(json_pattern, store_json_container, content, flags=re.DOTALL)
-        
+
         # Escape HTML characters
         content = html.escape(content)
-        
+
         # Restore JSON containers
         for i, json_container in enumerate(json_containers):
             content = content.replace(f"__JSON_PLACEHOLDER_{i}__", json_container)
-        
+
         return content
 
     def _format_for_cli(self, content: str) -> str:
         """Format content for CLI mode (keep as-is with color codes).
-        
+
         Args:
             content: The content to format
-            
+
         Returns:
             str: CLI-friendly formatted content (unchanged)
         """
@@ -479,23 +486,23 @@ class SFCWizardAgent:
                 minutes=minutes,
                 jmespath_expr=jmespath_expr,
             )
-            
+
         @tool
         def run_example(input_text: str) -> str:
             """Run the example SFC configuration when receiving 'example' as input.
-            
+
             Args:
                 input_text: The text input from the user
             """
             if input_text.lower().strip() == "example":
                 # Path to the example config file
                 example_config_path = "sfc-config-example.json"
-                
+
                 try:
                     # Read the example config file
-                    with open(example_config_path, 'r') as f:
+                    with open(example_config_path, "r") as f:
                         config_json = f.read()
-                    
+
                     # Run the example configuration using the existing tool
                     return self._run_sfc_config_locally(config_json, "example-config")
                 except Exception as e:
@@ -504,14 +511,14 @@ class SFCWizardAgent:
             else:
                 result = f"Input '{input_text}' not recognized as 'example'. No action taken."
                 return self._format_output(result)
-                
+
         @tool
         def save_conversation(count: int = 1) -> str:
             """Save the last N conversation exchanges as markdown files.
-            
+
             Each file contains a user prompt and the agent's response, formatted in markdown.
             The filename is generated based on the content of the prompt.
-            
+
             Args:
                 count: Number of recent conversations to save (default: 1)
             """
@@ -527,10 +534,10 @@ class SFCWizardAgent:
         # Create agent with SFC-specific tools
         try:
             # Get model ID from environment variable with default value if not set
-            model_id = os.getenv("BEDROCK_MODEL_ID", "eu.anthropic.claude-3-7-sonnet-20250219-v1:0")
-            bedrock_model = BedrockModel(
-                model_id=model_id
+            model_id = os.getenv(
+                "BEDROCK_MODEL_ID", "eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
             )
+            bedrock_model = BedrockModel(model_id=model_id)
             agent_internal_tools = [
                 validate_sfc_config,
                 create_sfc_config_template,
@@ -556,7 +563,11 @@ class SFCWizardAgent:
             "Use your MCP (=main resource) and internal tools to gather required information.
             "Always explain your reasoning and cite sources when possible."""
 
-            agent = Agent(model=bedrock_model, tools=agent_internal_tools + mcp_tools, system_prompt=agent_system_prompt)
+            agent = Agent(
+                model=bedrock_model,
+                tools=agent_internal_tools + mcp_tools,
+                system_prompt=agent_system_prompt,
+            )
         except Exception as e:
             print(e)
             agent = Agent(tools=agent_internal_tools)
