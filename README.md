@@ -60,6 +60,11 @@ You can run the components directly from GitHub without cloning:
 uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=agents/sfc_wizard_agent agent
 ```
 
+**SFC Wizard Agent - UI:**
+```bash
+uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=agents/sfc_wizard_agent sfc-wizard-ui 
+```
+
 **SFC Spec MCP Server:**
 ```bash
 uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=mcp-servers/sfc-spec-server sfc_spec
