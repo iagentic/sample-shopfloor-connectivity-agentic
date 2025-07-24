@@ -13,7 +13,8 @@ class SFCConfigValidator:
     """
     SFC Configuration Validator class
 
-    Provides methods to validate SFC configurations against required schemas and best practices.
+    Provides methods to validate SFC configurations against required schemas and best practices. 
+    - Make sure to also check against the settings from the create_sfc_config_template tool
     """
 
     def __init__(self, sfc_knowledge: Dict[str, Any]):

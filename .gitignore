@@ -6,3 +6,4 @@ modules/
 sfc-repo
 .kiro
 conversation_logs
+stored_configs

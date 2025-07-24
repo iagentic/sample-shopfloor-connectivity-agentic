@@ -65,11 +65,18 @@ class SFCFileOperations:
             if not filename.lower().endswith(".json"):
                 filename += ".json"
 
+            # Create the stored_configs directory if it doesn't exist
+            storage_dir = "stored_configs"
+            os.makedirs(storage_dir, exist_ok=True)
+
+            # Create the full path
+            full_path = os.path.join(storage_dir, os.path.basename(filename))
+
             # Write to file
-            with open(filename, "w") as file:
+            with open(full_path, "w") as file:
                 json.dump(config, file, indent=2)
 
-            return f"✅ Configuration saved successfully to '{filename}'"
+            return f"✅ Configuration saved successfully to '{full_path}'"
         except json.JSONDecodeError:
             return "❌ Invalid JSON configuration provided"
         except Exception as e:
