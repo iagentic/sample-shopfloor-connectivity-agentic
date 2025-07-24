@@ -305,7 +305,8 @@ class ChatUI:
                     # Signal end of streaming
                     self.socketio.emit("agent_streaming_end", {}, room=sid)
 
-                    # Create response message
+                    # Create response message - just add to conversation history,
+                    # but don't send again to client to avoid duplication
                     agent_msg = {
                         "role": "assistant",
                         "content": formatted_response,
@@ -314,9 +315,8 @@ class ChatUI:
 
                     # Add to conversation history
                     self.conversations[session_id].append(agent_msg)
-
-                    # Send final response to client
-                    self.socketio.emit("agent_response", agent_msg, room=sid)
+                    
+                    # No need to emit agent_response here as streaming already showed the content
 
                 except Exception as e:
                     # Ensure streaming is ended even on error
