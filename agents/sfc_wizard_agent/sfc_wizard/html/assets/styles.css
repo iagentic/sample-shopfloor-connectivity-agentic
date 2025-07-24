@@ -266,6 +266,87 @@ body {
     background: #94a3b8;
 }
 
+/* JSON formatting styles */
+.json-container {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin: 10px 0;
+    overflow: hidden;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.json-header {
+    background: #1e293b;
+    color: white;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.json-label {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.json-label::before {
+    content: "{ }";
+    margin-right: 6px;
+    color: #64748b;
+}
+
+.copy-json-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.copy-json-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.json-code {
+    background: #ffffff;
+    color: #1e293b;
+    padding: 12px;
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    overflow-x: auto;
+    white-space: pre;
+    border: none;
+}
+
+.json-code code {
+    background: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+/* JSON syntax highlighting */
+.json-code {
+    color: #1e293b;
+}
+
+/* Make JSON copyable by preventing line breaks from being copied */
+.json-code::selection {
+    background: #3b82f6;
+    color: white;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .chat-container {
@@ -290,5 +371,14 @@ body {
         width: 35px;
         height: 35px;
         font-size: 0.9rem;
+    }
+    
+    .json-container {
+        font-size: 0.8rem;
+    }
+    
+    .json-code {
+        font-size: 0.75rem;
+        padding: 8px;
     }
 }

@@ -161,7 +161,7 @@ class SFCWizardChat {
 
         const content = document.createElement('div');
         content.className = 'message-content';
-        content.textContent = message.content;
+        content.innerHTML = message.content;
 
         const timestamp = document.createElement('div');
         timestamp.className = 'timestamp';
@@ -212,6 +212,65 @@ function clearConversation() {
     
     if (confirm('Are you sure you want to clear the conversation?')) {
         window.chat.socket.emit('clear_conversation');
+    }
+}
+
+function copyJsonToClipboard(jsonId) {
+    const jsonElement = document.getElementById(jsonId);
+    if (!jsonElement) {
+        console.error('JSON element not found:', jsonId);
+        return;
+    }
+    
+    const jsonText = jsonElement.textContent;
+    
+    // Use the Clipboard API if available
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(jsonText).then(() => {
+            showCopyFeedback(jsonId);
+        }).catch(err => {
+            console.error('Failed to copy JSON:', err);
+            fallbackCopyTextToClipboard(jsonText, jsonId);
+        });
+    } else {
+        // Fallback for older browsers
+        fallbackCopyTextToClipboard(jsonText, jsonId);
+    }
+}
+
+function fallbackCopyTextToClipboard(text, jsonId) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        showCopyFeedback(jsonId);
+    } catch (err) {
+        console.error('Fallback: Oops, unable to copy', err);
+        alert('Failed to copy JSON to clipboard. Please select and copy manually.');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+function showCopyFeedback(jsonId) {
+    // Find the copy button for this JSON block
+    const copyBtn = document.querySelector(`button[onclick*="${jsonId}"]`);
+    if (copyBtn) {
+        const originalHTML = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+        copyBtn.style.color = '#28a745';
+        
+        setTimeout(() => {
+            copyBtn.innerHTML = originalHTML;
+            copyBtn.style.color = '';
+        }, 2000);
     }
 }
 
