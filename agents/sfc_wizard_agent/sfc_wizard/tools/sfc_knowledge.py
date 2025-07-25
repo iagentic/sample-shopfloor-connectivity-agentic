@@ -8,6 +8,7 @@ Provides a knowledge base of SFC configurations, protocols, targets, and other r
 
 from typing import Dict, Any
 
+
 def what_is_sfc() -> str:
     """Provide an explanation of what SFC (Shop Floor Connectivity) is
 
@@ -34,6 +35,7 @@ Shop Floor Connectivity (SFC) is an industrial data ingestion enabler, that can 
 • Reduce time-to-value for industrial IoT implementations
 • Simplify complex industrial data integration challenges
 """
+
 
 def load_sfc_knowledge() -> Dict[str, Any]:
     """Load SFC framework knowledge base

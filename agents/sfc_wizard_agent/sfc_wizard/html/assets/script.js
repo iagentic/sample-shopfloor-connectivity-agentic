@@ -7,6 +7,8 @@ class SFCWizardChat {
         this.messageForm = document.getElementById('messageForm');
         this.socket = null;
         this.isReady = false;
+        this.sessionId = null;
+        this.sessionExpiryMinutes = 5;
         this.markdownConverter = new showdown.Converter({
             tables: true,
             tasklists: true,
@@ -20,9 +22,72 @@ class SFCWizardChat {
         this.streamingAccumulatedText = '';
         this.isStreaming = false;
         
+        this.initializeSession();
         this.setupFormHandlers();
+        this.setupBeforeUnloadHandler();
         this.showInitializingMessage();
         this.waitForAgentReady();
+    }
+
+    initializeSession() {
+        // Try to get existing session from localStorage
+        const sessionData = this.getStoredSession();
+        
+        if (sessionData && !this.isSessionExpired(sessionData)) {
+            this.sessionId = sessionData.sessionId;
+            console.log('Restored existing session:', this.sessionId);
+        } else {
+            // Generate new session ID
+            this.sessionId = this.generateSessionId();
+            this.storeSession(this.sessionId);
+            console.log('Created new session:', this.sessionId);
+        }
+    }
+
+    generateSessionId() {
+        return 'session_' + Math.random().toString(36).substr(2, 16) + '_' + Date.now();
+    }
+
+    storeSession(sessionId) {
+        const sessionData = {
+            sessionId: sessionId,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('sfc_wizard_session', JSON.stringify(sessionData));
+    }
+
+    getStoredSession() {
+        try {
+            const sessionJson = localStorage.getItem('sfc_wizard_session');
+            if (!sessionJson) return null;
+            return JSON.parse(sessionJson);
+        } catch (error) {
+            console.error('Error parsing stored session:', error);
+            localStorage.removeItem('sfc_wizard_session');
+            return null;
+        }
+    }
+
+    isSessionExpired(sessionData) {
+        const now = Date.now();
+        const expiryTime = sessionData.timestamp + (this.sessionExpiryMinutes * 60 * 1000);
+        return now > expiryTime;
+    }
+
+    setupBeforeUnloadHandler() {
+        window.addEventListener('beforeunload', (e) => {
+            // Only show dialog if there's an active conversation
+            if (this.hasActiveConversation()) {
+                e.preventDefault();
+                e.returnValue = 'Are you sure you want to leave? Your conversation will be preserved for 5 minutes.';
+                return e.returnValue;
+            }
+        });
+    }
+
+    hasActiveConversation() {
+        // Check if there are any messages in the conversation
+        return this.messagesContainer && this.messagesContainer.children.length > 1; // More than just welcome message
     }
 
     showInitializingMessage() {
@@ -85,6 +150,13 @@ class SFCWizardChat {
         this.socket = io();
         this.isReady = true;
         this.setupSocketListeners();
+        
+        // Send session ID to server after connection
+        this.socket.on('connect', () => {
+            console.log('Connected to server, sending session ID:', this.sessionId);
+            this.socket.emit('register_session', { sessionId: this.sessionId });
+        });
+        
         this.messageInput.placeholder = "Ask about SFC configurations, protocols, or type 'example' to try it out...";
         this.messageInput.focus();
         this.messageInput.disabled = false;

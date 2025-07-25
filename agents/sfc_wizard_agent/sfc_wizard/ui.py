@@ -88,8 +88,10 @@ class ChatUI:
         # Initialize SocketIO
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
 
-        # Store conversation history per session
+        # Store conversation history per session with timestamps
         self.conversations: Dict[str, List[Dict]] = {}
+        self.session_timestamps: Dict[str, datetime] = {}
+        self.session_expiry_minutes = 5
 
         # SFC Wizard Agent will be initialized later within MCP context
         self.sfc_agent = None
@@ -157,8 +159,11 @@ class ChatUI:
         @self.app.route("/")
         def index():
             """Main chat interface."""
-            # Generate session ID if not exists
-            if "session_id" not in session:
+            # Check if session_id is provided as query parameter (from localStorage)
+            client_session_id = request.args.get("session_id")
+            if client_session_id:
+                session["session_id"] = client_session_id
+            elif "session_id" not in session:
                 session["session_id"] = str(uuid.uuid4())
             return render_template("chat.html")
 
@@ -189,10 +194,25 @@ class ChatUI:
                 )
                 return False
 
-            session_id = session.get("session_id", str(uuid.uuid4()))
-            session["session_id"] = session_id
+            self.logger.info("Client connected - waiting for session registration")
 
-            # Initialize conversation for new session
+        @self.socketio.on("register_session")
+        def handle_register_session(data):
+            """Handle session registration from client with localStorage session ID."""
+            client_session_id = data.get("sessionId")
+
+            if client_session_id and client_session_id.startswith("session_"):
+                # Use the client's session ID
+                session["session_id"] = client_session_id
+                session_id = client_session_id
+                self.logger.info(f"Registered client session: {session_id}")
+            else:
+                # Generate new session ID if invalid
+                session_id = str(uuid.uuid4())
+                session["session_id"] = session_id
+                self.logger.info(f"Generated new session: {session_id}")
+
+            # Initialize conversation for session if it doesn't exist
             if session_id not in self.conversations:
                 self.conversations[session_id] = []
                 # Send welcome message
@@ -205,11 +225,32 @@ class ChatUI:
                         "timestamp": datetime.now().isoformat(),
                     }
                 )
+                self.logger.info(f"Created new conversation for session: {session_id}")
+            else:
+                self.logger.info(
+                    f"Restored existing conversation for session: {session_id} ({len(self.conversations[session_id])} messages)"
+                )
 
-            # Send conversation history to client
-            emit("conversation_history", {"messages": self.conversations[session_id]})
-
-            self.logger.info(f"Client connected with session: {session_id}")
+            # Send conversation history to client - with safety check
+            try:
+                conversation_messages = self.conversations.get(session_id, [])
+                emit("conversation_history", {"messages": conversation_messages})
+            except Exception as e:
+                self.logger.error(f"Error sending conversation history: {str(e)}")
+                # Initialize empty conversation and try again
+                self.conversations[session_id] = []
+                welcome_message = self._get_welcome_message()
+                formatted_welcome = welcome_message
+                self.conversations[session_id].append(
+                    {
+                        "role": "assistant",
+                        "content": formatted_welcome,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+                emit(
+                    "conversation_history", {"messages": self.conversations[session_id]}
+                )
 
         @self.socketio.on("disconnect")
         def handle_disconnect():
@@ -232,7 +273,12 @@ class ChatUI:
                 )
                 return
 
+            # Ensure we have a valid session_id
             session_id = session.get("session_id")
+            if not session_id:
+                session_id = str(uuid.uuid4())
+                session["session_id"] = session_id
+
             user_message = data.get("message", "").strip()
 
             if not user_message:
@@ -245,6 +291,7 @@ class ChatUI:
                 "timestamp": datetime.now().isoformat(),
             }
 
+            # Initialize conversation if it doesn't exist
             if session_id not in self.conversations:
                 self.conversations[session_id] = []
 
@@ -302,8 +349,13 @@ class ChatUI:
                         sys.stdout = original_stdout
                         sys.stderr = original_stderr
 
-                    # Format the response for UI display
-                    formatted_response = response
+                    # Format the response for UI display - ensure it's a string
+                    if hasattr(response, "content"):
+                        formatted_response = str(response.content)
+                    elif hasattr(response, "text"):
+                        formatted_response = str(response.text)
+                    else:
+                        formatted_response = str(response)
 
                     # Signal end of streaming
                     self.socketio.emit("agent_streaming_end", {}, room=sid)
@@ -318,7 +370,7 @@ class ChatUI:
 
                     # Add to conversation history
                     self.conversations[session_id].append(agent_msg)
-                    
+
                     # No need to emit agent_response here as streaming already showed the content
 
                 except Exception as e:
@@ -349,28 +401,33 @@ class ChatUI:
         @self.socketio.on("clear_conversation")
         def handle_clear_conversation():
             """Handle request to clear conversation."""
+            # Ensure we have a valid session_id
             session_id = session.get("session_id")
-            if session_id in self.conversations:
-                self.conversations[session_id] = []
-                # Send new welcome message
-                welcome_message = self._get_welcome_message()
-                formatted_welcome = welcome_message
-                self.conversations[session_id].append(
-                    {
-                        "role": "assistant",
-                        "content": formatted_welcome,
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
-                emit(
-                    "conversation_cleared", {"messages": self.conversations[session_id]}
-                )
+            if not session_id:
+                session_id = str(uuid.uuid4())
+                session["session_id"] = session_id
+
+            # Initialize or clear conversation
+            self.conversations[session_id] = []
+            # Send new welcome message
+            welcome_message = self._get_welcome_message()
+            formatted_welcome = welcome_message
+            self.conversations[session_id].append(
+                {
+                    "role": "assistant",
+                    "content": formatted_welcome,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+            emit("conversation_cleared", {"messages": self.conversations[session_id]})
 
     def _get_welcome_message(self) -> str:
         """Get the welcome message for new conversations."""
         return """🏭 **AWS SHOP FLOOR CONNECTIVITY (SFC) WIZARD**
 
 Specialized assistant for industrial data connectivity to AWS
+
+💾 **Session Persistence**: Your conversation is automatically saved and will persist for 5 minutes even if you refresh the page or close the browser tab.
 
 🎯 **I can help you with:**
 • 🔍 Debug existing SFC configurations
@@ -437,7 +494,7 @@ def main():
                 print(f"✅ Loaded environment variables from {repo_env_path}")
             else:
                 print("ℹ️ No .env file found, using default environment variables")
-        
+
         with stdio_mcp_client:
             chat_ui = ChatUI(host="127.0.0.1")
             # Initialize agent within MCP context
