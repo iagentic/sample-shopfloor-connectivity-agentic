@@ -101,7 +101,7 @@ class SFCWizardAgent:
         self.active_processes = []
 
         # Initialize the prompt logger
-        self.prompt_logger = PromptLogger(max_history=20, log_dir="conversation_logs")
+        self.prompt_logger = PromptLogger(max_history=20, log_dir=".sfc")
 
         # Detect the running mode (UI or CLI)
         self.is_ui_mode = self._detect_ui_mode()

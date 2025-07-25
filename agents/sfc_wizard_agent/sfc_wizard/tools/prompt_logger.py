@@ -26,7 +26,7 @@ class ConversationEntry:
 class PromptLogger:
     """Handles logging and saving of agent prompts and responses"""
 
-    def __init__(self, max_history: int = 10, log_dir: str = "conversation_logs"):
+    def __init__(self, max_history: int = 10, log_dir: str = ".sfc"):
         """Initialize the prompt logger
 
         Args:
