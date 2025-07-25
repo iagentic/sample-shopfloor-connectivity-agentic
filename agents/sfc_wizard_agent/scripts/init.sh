@@ -20,7 +20,7 @@ uv sync
 # Check if .env file exists, if not create it from template
 if [ ! -f ".env" ]; then
     echo "Creating .env file from template..."
-    cp .env.template .env
+    cp ../../.env.template .env
 fi
 
 # Generate Flask secret key if it doesn't exist
