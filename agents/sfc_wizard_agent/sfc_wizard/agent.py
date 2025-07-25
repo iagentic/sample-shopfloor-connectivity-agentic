@@ -16,17 +16,13 @@ import html
 from dotenv import load_dotenv
 
 # Import the externalized functions
-from sfc_wizard.tools.config_generator import generate_config_template
-from sfc_wizard.tools.sfc_knowledge import load_sfc_knowledge
-from sfc_wizard.tools.config_validator import SFCConfigValidator
-from sfc_wizard.tools.diagnostics import diagnose_issue, suggest_optimizations
-from sfc_wizard.tools.sfc_explanations import explain_concept
 from sfc_wizard.tools.file_operations import SFCFileOperations
 from sfc_wizard.tools.log_operations import SFCLogOperations
 from sfc_wizard.tools.folder_operations import SFCFolderOperations
 from sfc_wizard.tools.sfc_runner import SFCRunner
 from sfc_wizard.tools.sfc_visualization import visualize_file_target_data
 from sfc_wizard.tools.prompt_logger import PromptLogger
+from sfc_wizard.tools.sfc_knowledge import load_sfc_knowledge
 
 # Load environment variables
 load_dotenv()
@@ -121,25 +117,6 @@ class SFCWizardAgent:
                 return True
         return False
 
-    def _format_output(self, content: str) -> str:
-        """Format output based on the current usage mode.
-
-        For UI mode, the content is returned as-is as markdown, which will be processed
-        by the Showdown.js library on the client side.
-        For CLI mode, the content is also returned as-is to preserve terminal formatting.
-
-        Args:
-            content: The content to format
-
-        Returns:
-            str: Formatted content suitable for the current mode
-        """
-        # No special formatting needed anymore as we're using Showdown.js for UI mode
-        # and keeping CLI content as-is
-        return content
-
-    # _load_sfc_knowledge method has been externalized to src/tools/sfc_knowledge.py
-
     def _create_agent(self) -> Agent:
         """Create a Strands agent with SFC-specific tools"""
 
@@ -148,112 +125,6 @@ class SFCWizardAgent:
         self.log_tail_thread = None
         self.log_tail_stop_event = threading.Event()
         self.log_buffer = queue.Queue(maxsize=100)  # Buffer for log messages
-
-        @tool
-        def validate_sfc_config(config_json: str) -> str:
-            """Validate an SFC configuration file for correctness and completeness.
-
-            Args:
-                config_json: JSON string containing the SFC configuration
-            """
-            try:
-                # Parse the configuration
-                config = json.loads(config_json)
-                self.current_config = config
-
-                # Create validator instance and validate the config
-                validator = SFCConfigValidator(self.sfc_knowledge)
-                is_valid = validator.validate_config(config)
-
-                # Store validation results
-                self.validation_errors = validator.get_errors()
-                self.recommendations = validator.get_recommendations()
-
-                # Return validation results
-                if not is_valid:
-                    result = f"❌ Configuration validation failed:\n" + "\n".join(
-                        self.validation_errors
-                    )
-                    return self._format_output(result)
-                else:
-                    result = "✅ Configuration is valid!"
-                    if self.recommendations:
-                        result += "\n\n💡 Recommendations:\n" + "\n".join(
-                            self.recommendations
-                        )
-                    return self._format_output(result)
-
-            except json.JSONDecodeError as e:
-                result = f"❌ Invalid JSON format: {str(e)}"
-                return self._format_output(result)
-            except Exception as e:
-                result = f"❌ Validation error: {str(e)}"
-                return self._format_output(result)
-
-        @tool
-        def create_sfc_config_template(
-            protocol: str, target: str, environment: str = "development"
-        ) -> str:
-            """Create an SFC configuration template for a specific protocol and target.
-
-            Args:
-                protocol: Source protocol (e.g., OPCUA, MODBUS, S7)
-                target: Target service (e.g., AWS-S3, AWS-IOT-CORE, DEBUG)
-                environment: Environment type (development, production)
-            """
-            result = generate_config_template(
-                protocol.upper(), target.upper(), environment, self.sfc_knowledge
-            )
-            return self._format_output(result)
-
-        @tool
-        def diagnose_sfc_issue(issue_description: str, config_json: str = "") -> str:
-            """Diagnose common SFC issues and provide troubleshooting steps.
-
-            Args:
-                issue_description: Description of the problem
-                config_json: Optional SFC configuration (if available)
-            """
-            return diagnose_issue(issue_description, config_json, self.sfc_knowledge)
-
-        @tool
-        def suggest_sfc_optimization(
-            config_json: str, performance_requirements: str = ""
-        ) -> str:
-            """Suggest optimizations for an SFC configuration based on performance requirements.
-
-            Args:
-                config_json: Current SFC configuration
-                performance_requirements: Description of performance needs
-            """
-            return suggest_optimizations(
-                config_json, performance_requirements, self.sfc_knowledge
-            )
-
-        @tool
-        def generate_environment_specs(
-            protocol: str, devices: str, data_volume: str, targets: str
-        ) -> str:
-            """Generate environment specifications needed for SFC deployment.
-
-            Args:
-                protocol: Primary protocol to be used
-                devices: Description of devices to connect
-                data_volume: Expected data volume and frequency
-                targets: Target AWS services or systems
-            """
-            return generate_environment_specs(
-                protocol, devices, data_volume, targets, self.sfc_knowledge
-            )
-
-        @tool
-        def explain_sfc_concept(concept: str) -> str:
-            """Explain SFC concepts, components, or configuration options.
-
-            Args:
-                concept: SFC concept to explain (e.g., schedules, transformations, filters)
-            """
-            return explain_concept(concept, self.sfc_knowledge)
 
         @tool
         def read_config_from_file(filename: str) -> str:
@@ -285,11 +156,6 @@ class SFCWizardAgent:
                 config_name: Optional name for the configuration and test folder (defaults to timestamp if not provided)
             """
             return self._run_sfc_config_locally(config_json, config_name)
-
-        @tool
-        def what_is_sfc() -> str:
-            """Provides an explanation of what Shop Floor Connectivity (SFC) is and its key features."""
-            return what_is_sfc()
 
         @tool
         def tail_logs(lines: int = 20, follow: bool = False) -> str:
@@ -369,10 +235,10 @@ class SFCWizardAgent:
                     return self._run_sfc_config_locally(config_json, "example-config")
                 except Exception as e:
                     result = f"❌ Error running example configuration: {str(e)}"
-                    return self._format_output(result)
+                    return result
             else:
                 result = f"Input '{input_text}' not recognized as 'example'. No action taken."
-                return self._format_output(result)
+                return result
 
         @tool
         def save_conversation(count: int = 1) -> str:
@@ -401,16 +267,9 @@ class SFCWizardAgent:
             )
             bedrock_model = BedrockModel(model_id=model_id)
             agent_internal_tools = [
-                validate_sfc_config,
-                create_sfc_config_template,
-                # diagnose_sfc_issue,
-                # suggest_sfc_optimization,
-                # generate_environment_specs,
-                # explain_sfc_concept,
                 read_config_from_file,
                 save_config_to_file,
                 run_sfc_config_locally,
-                what_is_sfc,
                 tail_logs,
                 clean_runs_folder,
                 confirm_clean_runs_folder,
@@ -418,8 +277,8 @@ class SFCWizardAgent:
                 run_example,
                 save_conversation,
             ]
+
             mcp_tools = stdio_mcp_client.list_tools_sync()
-            # print(mcp_tools)
 
             agent_system_prompt = """You are a specialized assistant for creating, validating & running SFC (stands for "Shop Floor Connectivity") configurations.
             "Use your MCP (shall be your main resource for validation) and internal tools to gather required information.
@@ -435,24 +294,6 @@ class SFCWizardAgent:
             agent = Agent(tools=agent_internal_tools)
 
         return agent
-
-    # Validation methods have been externalized to src/tools/config_validator.py
-
-    # _generate_config_template method has been externalized to src/tools/config_generator.py
-
-    # _diagnose_issue method has been externalized to src/tools/diagnostics.py
-
-    # _suggest_optimizations method has been externalized to src/tools/diagnostics.py
-
-    # _generate_environment_specs method has been externalized to src/tools/sfc_explanations.py
-
-    # _what_is_sfc method has been externalized to src/tools/sfc_explanations.py
-
-    # _explain_concept method has been externalized to src/tools/sfc_explanations.py
-
-    # _read_config_from_file method has been externalized to src/tools/file_operations.py
-
-    # _run_sfc_config_locally method has been externalized to src/tools/sfc_runner.py
 
     def _run_sfc_config_locally(self, config_json: str, config_name: str = "") -> str:
         """Run SFC configuration locally in a test environment"""
@@ -480,19 +321,7 @@ class SFCWizardAgent:
         self.active_processes = updated_processes
         self.log_tail_thread = updated_log_tail_thread
 
-        return self._format_output(result)
-
-    # _analyze_sfc_config_for_modules method has been externalized to src/tools/sfc_module_analyzer.py
-
-    # _save_config_to_file method has been externalized to src/tools/file_operations.py
-
-    # _log_tail_worker method has been externalized to src/tools/log_operations.py
-
-    # _clean_runs_folder method has been externalized to src/tools/folder_operations.py
-
-    # _confirm_clean_runs_folder method has been externalized to src/tools/folder_operations.py
-
-    # _tail_logs method has been externalized to src/tools/log_operations.py
+        return result
 
     def boot(self):
         """Boot sequence for SFC Wizard"""

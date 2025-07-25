@@ -66,7 +66,7 @@ class SFCFileOperations:
                 filename += ".json"
 
             # Create the stored_configs directory if it doesn't exist
-            storage_dir = "stored_configs"
+            storage_dir = ".sfc/stored_configs"
             os.makedirs(storage_dir, exist_ok=True)
 
             # Create the full path

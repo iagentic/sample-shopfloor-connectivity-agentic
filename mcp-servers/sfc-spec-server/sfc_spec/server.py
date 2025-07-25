@@ -12,6 +12,10 @@ import re
 import json
 from fastmcp import FastMCP
 from typing import Dict, Any, Optional
+from tools.config_validator import SFCConfigValidator
+from tools.config_generator import generate_config_template
+from tools.sfc_knowledge import load_sfc_knowledge, what_is_sfc
+
 
 # Define the repository path
 REPO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sfc-repo")
@@ -51,6 +55,7 @@ server = FastMCP(
     instructions="Provides access to SFC documentation Specification and repository management tools",
 )
 
+sfc_knowledge = load_sfc_knowledge()
 
 @server.tool("update_repo")
 def update_repo() -> Dict[str, Any]:
@@ -805,151 +810,134 @@ def get_sfc_config_examples_tool(
     return {"examples": all_examples, "count": len(all_examples)}
 
 
-@server.tool("validate_sfc_config")
-def validate_sfc_config_tool(config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Performs basic validation of an SFC configuration.
 
-    This tool checks if a provided configuration object has the required structure
-    and fields for an SFC component configuration.
+@server.tool("create_sfc_config_template")
+def create_sfc_config_template(
+    protocol: str, target: str, environment: str = "development"
+) -> Dict[str, Any]:
+    """Create an SFC configuration template for a specific protocol and target.
 
     Args:
-        config (dict): The configuration object to validate. Should be a dictionary
-            representing an SFC component configuration.
-
+        protocol: Source protocol (e.g., OPCUA, MODBUS, S7)
+        target: Target service (e.g., AWS-S3, AWS-IOT-CORE, DEBUG)
+        environment: Environment type (development, production)
+    
     Returns:
-        dict: A dictionary containing the validation results
-            - valid (bool): Whether the configuration is valid
-            - errors (list): List of validation error messages (if any)
-            - warnings (list): List of validation warning messages (if any)
-            - component_type (str): Detected component type (adapter, target, or unknown)
-            - component_name (str): The name of the component from the config
-
-    Example:
-        ```
-        {
-          "server_name": "sfc-spec-server",
-          "tool_name": "validate_sfc_config",
-          "arguments": {
-            "config": {
-              "name": "MyAdapter",
-              "adapterType": "OPCUA",
-              "description": "An example OPC UA adapter",
-              "sources": [
-                {
-                  "name": "OpcuaSource1",
-                  "endpoint": "opc.tcp://localhost:4840/opcua/server",
-                  "topics": [
-                    {"name": "Topic1", "sourcePath": "ns=2;i=1", "dataType": "Int32"}
-                  ]
-                }
-              ]
-            }
-          }
-        }
-        ```
+        dict: A dictionary containing the configuration template or error information
+            - message (str): Success or failure message
+            - template (str): The generated configuration template (if successful)
+            - error (str): Error message (if failure)
+            - status (int): HTTP-like status code indicating result (200 for success)
     """
-    errors = []
-    warnings = []
+    try:
+        result = generate_config_template(
+            protocol.upper(), target.upper(), environment, sfc_knowledge
+        )
+        
+        # Check if the result starts with an error indicator
+        if result.startswith("❌"):
+            return {
+                "message": "Failed to generate configuration template",
+                "error": result,
+                "status": 400
+            }
+        else:
+            return {
+                "message": "Configuration template generated successfully",
+                "template": result,
+                "status": 200
+            }
+    except Exception as e:
+        return {
+            "message": "Failed to generate configuration template",
+            "error": str(e),
+            "status": 500
+        }
 
-    # Check if config is a dictionary
-    if not isinstance(config, dict):
-        errors.append("Configuration must be a JSON object")
+@server.tool("validate_sfc_config")
+def validate_sfc_config(config_json: str) -> Dict[str, Any]:
+    """Validate an SFC configuration file for correctness and completeness.
+
+    Args:
+        config_json: JSON string containing the SFC configuration
+    
+    Returns:
+        dict: A dictionary containing validation results
+            - valid (bool): Whether the configuration is valid
+            - message (str): Success or failure message
+            - errors (list): List of validation errors (if any)
+            - recommendations (list): List of recommendations (if any)
+            - status (int): HTTP-like status code indicating result
+    """
+    try:
+        # Parse the configuration
+        config = json.loads(config_json)
+
+        # Create validator instance and validate the config
+        validator = SFCConfigValidator(sfc_knowledge)
+        is_valid = validator.validate_config(config)
+
+        # Store validation results
+        validation_errors = validator.get_errors()
+        recommendations = validator.get_recommendations()
+
+        # Return validation results
+        result = {
+            "valid": is_valid,
+            "message": "Configuration is valid" if is_valid else "Configuration validation failed",
+            "status": 200 if is_valid else 400
+        }
+        
+        if validation_errors:
+            result["errors"] = validation_errors
+            
+        if recommendations:
+            result["recommendations"] = recommendations
+            
+        return result
+
+    except json.JSONDecodeError as e:
         return {
             "valid": False,
-            "errors": errors,
-            "warnings": warnings,
-            "component_type": "unknown",
-            "component_name": "unknown",
+            "message": "Invalid JSON format",
+            "error": str(e),
+            "status": 400
+        }
+    except Exception as e:
+        return {
+            "valid": False,
+            "message": "Validation error",
+            "error": str(e),
+            "status": 500
         }
 
-    # Get component name
-    component_name = config.get("name", "unknown")
-    if not component_name or component_name == "unknown":
-        warnings.append("Configuration is missing a name field")
-
-    # Determine component type and validate required fields
-    component_type = "unknown"
-
-    # Check if it's an adapter config
-    if "adapterType" in config:
-        component_type = "adapter"
-
-        # Validate adapter-specific fields
-        if not config.get("sources"):
-            errors.append("Adapter configuration must include 'sources' array")
-        else:
-            if not isinstance(config["sources"], list):
-                errors.append("'sources' must be an array")
-            else:
-                for i, source in enumerate(config["sources"]):
-                    if not isinstance(source, dict):
-                        errors.append(f"Source at index {i} must be an object")
-                        continue
-
-                    if "name" not in source:
-                        errors.append(
-                            f"Source at index {i} is missing required 'name' field"
-                        )
-
-                    # Check for topics
-                    if "topics" in source:
-                        if not isinstance(source["topics"], list):
-                            errors.append(
-                                f"'topics' in source '{source.get('name', i)}' must be an array"
-                            )
-                        else:
-                            for j, topic in enumerate(source["topics"]):
-                                if not isinstance(topic, dict):
-                                    errors.append(
-                                        f"Topic at index {j} in source '{source.get('name', i)}' must be an object"
-                                    )
-                                    continue
-
-                                if "name" not in topic:
-                                    errors.append(
-                                        f"Topic at index {j} in source '{source.get('name', i)}' is missing required 'name' field"
-                                    )
-
-    # Check if it's a target config
-    elif "targetType" in config:
-        component_type = "target"
-
-        # Validate target-specific fields
-        if not config.get("targets"):
-            errors.append("Target configuration must include 'targets' array")
-        else:
-            if not isinstance(config["targets"], list):
-                errors.append("'targets' must be an array")
-            else:
-                for i, target in enumerate(config["targets"]):
-                    if not isinstance(target, dict):
-                        errors.append(f"Target at index {i} must be an object")
-                        continue
-
-                    if "name" not in target:
-                        errors.append(
-                            f"Target at index {i} is missing required 'name' field"
-                        )
-
-    # Check if it's a combined config
-    elif "sources" in config and "targets" in config:
-        component_type = "core"
-
-        # Perform similar validations as above for sources and targets
-        if not isinstance(config["sources"], list):
-            errors.append("'sources' must be an array")
-        if not isinstance(config["targets"], list):
-            errors.append("'targets' must be an array")
-
-    return {
-        "valid": len(errors) == 0,
-        "errors": errors,
-        "warnings": warnings,
-        "component_type": component_type,
-        "component_name": component_name,
-    }
-
+@server.tool("what_is_sfc")
+def what_is_sfc_tool() -> Dict[str, Any]:
+    """Provides an explanation of what Shop Floor Connectivity (SFC) is and its key features.
+    
+    Returns:
+        dict: A dictionary containing SFC information
+            - message (str): Success message
+            - content (str): Detailed explanation of SFC
+            - content_type (str): Type of content (always "text")
+            - status (int): HTTP-like status code indicating result (200 for success)
+    """
+    try:
+        # Import at the function level to avoid circular import
+        from tools.sfc_knowledge import what_is_sfc as get_sfc_info
+        sfc_explanation = get_sfc_info()
+        return {
+            "message": "SFC information retrieved successfully",
+            "content": sfc_explanation,
+            "content_type": "text",
+            "status": 200
+        }
+    except Exception as e:
+        return {
+            "message": "Failed to retrieve SFC information",
+            "error": str(e),
+            "status": 500
+        }
 
 def main():
     """Entry point for the MCP server."""
