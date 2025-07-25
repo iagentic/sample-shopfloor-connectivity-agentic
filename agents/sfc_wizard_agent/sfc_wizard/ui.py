@@ -197,7 +197,7 @@ class ChatUI:
                 self.conversations[session_id] = []
                 # Send welcome message
                 welcome_message = self._get_welcome_message()
-                formatted_welcome = self.sfc_agent._format_output(welcome_message)
+                formatted_welcome = welcome_message
                 self.conversations[session_id].append(
                     {
                         "role": "assistant",
@@ -256,7 +256,7 @@ class ChatUI:
             # Check for exit commands
             if user_message.lower() in ["exit", "quit", "bye"]:
                 goodbye_content = "🏭 Thank you for using the SFC Wizard!\nMay your industrial data flow smoothly to the cloud! ☁️"
-                formatted_goodbye = self.sfc_agent._format_output(goodbye_content)
+                formatted_goodbye = goodbye_content
                 goodbye_msg = {
                     "role": "assistant",
                     "content": formatted_goodbye,
@@ -303,7 +303,7 @@ class ChatUI:
                         sys.stderr = original_stderr
 
                     # Format the response for UI display
-                    formatted_response = self.sfc_agent._format_output(str(response))
+                    formatted_response = response
 
                     # Signal end of streaming
                     self.socketio.emit("agent_streaming_end", {}, room=sid)
@@ -354,7 +354,7 @@ class ChatUI:
                 self.conversations[session_id] = []
                 # Send new welcome message
                 welcome_message = self._get_welcome_message()
-                formatted_welcome = self.sfc_agent._format_output(welcome_message)
+                formatted_welcome = welcome_message
                 self.conversations[session_id].append(
                     {
                         "role": "assistant",
