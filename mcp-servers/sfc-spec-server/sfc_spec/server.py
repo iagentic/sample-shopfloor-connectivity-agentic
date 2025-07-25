@@ -11,10 +11,7 @@ import subprocess
 import re
 import json
 from fastmcp import FastMCP
-from typing import Dict, Any, Optional
-from tools.config_validator import SFCConfigValidator
-from tools.config_generator import generate_config_template
-from tools.sfc_knowledge import load_sfc_knowledge, what_is_sfc
+from typing import Dict, Any, Optional, List
 
 
 # Define the repository path
@@ -22,6 +19,636 @@ REPO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sfc-repo")
 
 # Define the repository URL from environment variable with a fallback to default
 REPO_URL = os.environ.get("SFC_REPO_URL", "https://github.com/aws-samples/shopfloor-connectivity.git")
+
+
+# tools-functions
+
+def generate_config_template(
+    protocol: str, target: str, environment: str, sfc_knowledge: Dict[str, Any]
+) -> str:
+    """Generate a configuration template
+
+    Args:
+        protocol: Source protocol (e.g., OPCUA, MODBUS, S7)
+        target: Target service (e.g., AWS-S3, AWS-IOT-CORE, DEBUG)
+        environment: Environment type (development, production)
+        sfc_knowledge: Dictionary containing SFC framework knowledge
+
+    Returns:
+        String containing the generated configuration template
+    """
+    if protocol not in sfc_knowledge["supported_protocols"]:
+        return f"❌ Unsupported protocol: {protocol}. Supported: {', '.join(sfc_knowledge['supported_protocols'].keys())}"
+
+    # Create basic template structure
+    template = {
+        "AWSVersion": sfc_knowledge["aws_version"],
+        "Name": f"{protocol} to {target} Configuration",
+        "Description": f"{environment.title()} configuration for {protocol} protocol to {target} target",
+        "LogLevel": "Info" if environment == "production" else "Trace",
+        "Schedules": [
+            {
+                "Name": f"{protocol}Schedule",
+                "Interval": 1000 if environment == "development" else 5000,
+                "Active": True,
+                "TimestampLevel": "Both",
+                "Sources": {f"{protocol}-SOURCE": ["*"]},
+                "Targets": [f"{target}Target"],
+            }
+        ],
+        "Sources": generate_source_template(protocol, sfc_knowledge),
+        "Targets": generate_target_template(target, environment, sfc_knowledge),
+        "TargetTypes": generate_target_types(target, sfc_knowledge),
+        "AdapterTypes": generate_adapter_types(protocol, sfc_knowledge),
+        "ProtocolAdapters": generate_protocol_adapter_config(protocol, sfc_knowledge),
+    }
+
+    return f"✅ Generated {protocol} to {target} template:\n\n```json\n{json.dumps(template, indent=2)}\n```"
+
+
+def generate_source_template(
+    protocol: str, sfc_knowledge: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Generate source configuration template - check MCP tools too!!
+
+    Args:
+        protocol: Source protocol (e.g., OPCUA, MODBUS, S7)
+        sfc_knowledge: Dictionary containing SFC framework knowledge
+
+    Returns:
+        Dictionary containing source configuration
+    """
+    base_config = {
+        f"{protocol}-SOURCE": {
+            "Name": f"{protocol}Source",
+            "ProtocolAdapter": protocol,
+            "Description": f"{protocol} source configuration",
+            "Channels": {},
+        }
+    }
+
+    return base_config
+
+
+def generate_target_template(
+    target: str, environment: str, sfc_knowledge: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Generate target configuration template - check MCP tools too!!
+
+    Args:
+        target: Target service (e.g., AWS-S3, AWS-IOT-CORE, DEBUG)
+        environment: Environment type (development, production)
+        sfc_knowledge: Dictionary containing SFC framework knowledge
+
+    Returns:
+        Dictionary containing target configuration
+    """
+    base_config = {f"{target}Target": {"Active": True, "TargetType": target}}
+
+    return base_config
+
+
+def generate_target_types(target: str, sfc_knowledge: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate target types configuration
+
+    Args:
+        target: Target service (e.g., AWS-S3, AWS-IOT-CORE, DEBUG)
+        sfc_knowledge: Dictionary containing SFC framework knowledge
+
+    Returns:
+        Dictionary containing target type configuration
+    """
+    target_types = {}
+
+    # AWS targets
+    if target == "AWS-S3":
+        target_types["AWS-S3"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-s3-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awss3.AwsS3TargetWriter",
+        }
+    elif target == "AWS-IOT-CORE":
+        target_types["AWS-IOT-CORE"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-iot-core-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awsiotcore.AwsIotCoreTargetWriter",
+        }
+    elif target == "AWS-IOT-ANALYTICS":
+        target_types["AWS-IOT-ANALYTICS"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-iot-analytics-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awsiotanalytics.AwsIotAnalyticsTargetWriter",
+        }
+    elif target == "AWS-KINESIS":
+        target_types["AWS-KINESIS"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-kinesis-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awskinesis.AwsKinesisTargetWriter",
+        }
+    elif target == "AWS-KINESIS-FIREHOSE":
+        target_types["AWS-KINESIS-FIREHOSE"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-kinesis-firehose-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awskinesisfirehose.AwsKinesisFirehoseTargetWriter",
+        }
+    elif target == "AWS-S3-TABLES":
+        target_types["AWS-S3-TABLES"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-s3-tables-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awss3tables.AwsS3TablesTargetWriter",
+        }
+    elif target == "AWS-LAMBDA":
+        target_types["AWS-LAMBDA"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-lambda-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awslambda.AwsLambdaTargetWriter",
+        }
+    elif target == "AWS-MSK":
+        target_types["AWS-MSK"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-msk-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awsmsk.AwsMskTargetWriter",
+        }
+    elif target == "AWS-SITEWISE":
+        target_types["AWS-SITEWISE"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-sitewise-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awssitewise.AwsSitewiseTargetWriter",
+        }
+    elif target == "AWS-SITEWISEEDGE":
+        target_types["AWS-SITEWISEEDGE"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-sitewise-edge-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awssitewiseedge.AwsSitewiseEdgeTargetWriter",
+        }
+    elif target == "AWS-SNS":
+        target_types["AWS-SNS"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-sns-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awssns.AwsSnsTargetWriter",
+        }
+    elif target == "AWS-SQS":
+        target_types["AWS-SQS"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-sqs-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awssqs.AwsSqsTargetWriter",
+        }
+    elif target == "AWS-TIMESTREAM":
+        target_types["AWS-TIMESTREAM"] = {
+            "JarFiles": ["${MODULES_DIR}/aws-timestream-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.awstimestream.AwsTimestreamTargetWriter",
+        }
+
+    # Edge targets
+    elif target == "DEBUG":
+        target_types["DEBUG-TARGET"] = {
+            "JarFiles": ["${MODULES_DIR}/debug-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.debugtarget.DebugTargetWriter",
+        }
+    elif target == "FILE":
+        target_types["FILE-TARGET"] = {
+            "JarFiles": ["${MODULES_DIR}/file-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.filetarget.FileTargetWriter",
+        }
+    elif target == "MQTT":
+        target_types["MQTT-TARGET"] = {
+            "JarFiles": ["${MODULES_DIR}/mqtt-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.mqtt.MqttTargetWriter",
+        }
+    elif target == "NATS":
+        target_types["NATS-TARGET"] = {
+            "JarFiles": ["${MODULES_DIR}/nats-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.nats.NatsTargetWriter",
+        }
+    elif target == "OPCUA":
+        target_types["OPCUA-TARGET"] = {
+            "JarFiles": ["${MODULES_DIR}/opcua-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.opcua.OpcuaTargetWriter",
+        }
+    elif target == "OPCUA-WRITER":
+        target_types["OPCUA-WRITER"] = {
+            "JarFiles": ["${MODULES_DIR}/opcua-writer/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.opcua.OpcuaWriter",
+        }
+    elif target == "ROUTER":
+        target_types["ROUTER-TARGET"] = {
+            "JarFiles": ["${MODULES_DIR}/router-target/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.router.RouterTargetWriter",
+        }
+
+    return target_types
+
+
+def generate_adapter_types(
+    protocol: str, sfc_knowledge: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Generate adapter types configuration
+
+    Args:
+        protocol: Source protocol (e.g., OPCUA, MODBUS, S7)
+        sfc_knowledge: Dictionary containing SFC framework knowledge
+
+    Returns:
+        Dictionary containing adapter type configuration
+    """
+    adapter_types = {}
+
+    if protocol == "OPCUA":
+        adapter_types["OPCUA"] = {
+            "JarFiles": ["${MODULES_DIR}/opcua/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.opcua.OpcuaAdapter",
+        }
+    elif protocol == "MODBUS":
+        adapter_types["MODBUS"] = {
+            "JarFiles": ["${MODULES_DIR}/modbus/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.modbus.ModbusAdapter",
+        }
+    elif protocol == "S7":
+        adapter_types["S7"] = {
+            "JarFiles": ["${MODULES_DIR}/s7/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.s7.S7Adapter",
+        }
+    elif protocol == "ADS":
+        adapter_types["ADS"] = {
+            "JarFiles": ["${MODULES_DIR}/ads/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.ads.AdsAdapter",
+        }
+    elif protocol == "J1939":
+        adapter_types["J1939"] = {
+            "JarFiles": ["${MODULES_DIR}/j1939/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.j1939.J1939Adapter",
+        }
+    elif protocol == "MQTT":
+        adapter_types["MQTT"] = {
+            "JarFiles": ["${MODULES_DIR}/mqtt/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.mqtt.MqttAdapter",
+        }
+    elif protocol == "NATS":
+        adapter_types["NATS"] = {
+            "JarFiles": ["${MODULES_DIR}/nats/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.nats.NatsAdapter",
+        }
+    elif protocol == "OPCDA":
+        adapter_types["OPCDA"] = {
+            "JarFiles": ["${MODULES_DIR}/opcda/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.opcda.OpcdaAdapter",
+        }
+    elif protocol == "PCCC":
+        adapter_types["PCCC"] = {
+            "JarFiles": ["${MODULES_DIR}/pccc/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.pccc.PcccAdapter",
+        }
+    elif protocol == "REST":
+        adapter_types["REST"] = {
+            "JarFiles": ["${MODULES_DIR}/rest/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.rest.RestAdapter",
+        }
+    elif protocol == "SIMULATOR":
+        adapter_types["SIMULATOR"] = {
+            "JarFiles": ["${MODULES_DIR}/simulator/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.simulator.SimulatorAdapter",
+        }
+    elif protocol == "SLMP":
+        adapter_types["SLMP"] = {
+            "JarFiles": ["${MODULES_DIR}/slmp/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.slmp.SlmpAdapter",
+        }
+    elif protocol == "SNMP":
+        adapter_types["SNMP"] = {
+            "JarFiles": ["${MODULES_DIR}/snmp/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.snmp.SnmpAdapter",
+        }
+    elif protocol == "SQL":
+        adapter_types["SQL"] = {
+            "JarFiles": ["${MODULES_DIR}/sql/lib"],
+            "FactoryClassName": "com.amazonaws.sfc.sql.SqlAdapter",
+        }
+
+    return adapter_types
+
+
+def generate_protocol_adapter_config(
+    protocol: str, sfc_knowledge: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Generate protocol adapter configuration
+
+    Args:
+        protocol: Source protocol (e.g., OPCUA, MODBUS, S7)
+        sfc_knowledge: Dictionary containing SFC framework knowledge
+
+    Returns:
+        Dictionary containing protocol adapter configuration
+    """
+    config = {}
+
+    return config
+
+
+class SFCConfigValidator:
+    """
+    SFC Configuration Validator class
+
+    Provides methods to validate SFC configurations against required schemas and best practices. 
+    - Make sure to also check against the settings from the create_sfc_config_template tool
+    """
+
+    def __init__(self, sfc_knowledge: Dict[str, Any]):
+        """Initialize the validator with SFC knowledge base
+
+        Args:
+            sfc_knowledge: Dictionary containing SFC framework knowledge
+        """
+        self.sfc_knowledge = sfc_knowledge
+        self.validation_errors = []
+        self.recommendations = []
+
+    def validate_config(self, config: Dict[str, Any]) -> bool:
+        """Validate the entire configuration
+
+        Args:
+            config: SFC configuration dictionary
+
+        Returns:
+            True if valid, False if validation errors were found
+        """
+        # Clear previous validation state
+        self.validation_errors = []
+        self.recommendations = []
+
+        # Run all validations
+        self.validate_basic_structure(config)
+        self.validate_schedules(config.get("Schedules", []))
+        self.validate_sources(config.get("Sources", {}))
+        self.validate_targets(config.get("Targets", {}))
+        self.validate_adapters(config)
+
+        # Return validation result
+        return len(self.validation_errors) == 0
+
+    def get_errors(self) -> List[str]:
+        """Get validation errors
+
+        Returns:
+            List of validation error messages
+        """
+        return self.validation_errors
+
+    def get_recommendations(self) -> List[str]:
+        """Get recommendations for improving the configuration
+
+        Returns:
+            List of recommendation messages
+        """
+        return self.recommendations
+
+    def validate_basic_structure(self, config: Dict[str, Any]) -> None:
+        """Validate basic configuration structure
+
+        Args:
+            config: SFC configuration dictionary
+        """
+        # Check required sections
+        for section in self.sfc_knowledge["required_config_sections"]:
+            if section not in config:
+                self.validation_errors.append(f"Missing required section: {section}")
+
+        # Check AWS version
+        if config.get("AWSVersion") != self.sfc_knowledge["aws_version"]:
+            self.validation_errors.append(
+                f"AWSVersion should be '{self.sfc_knowledge['aws_version']}'"
+            )
+
+    def validate_schedules(self, schedules: List[Dict[str, Any]]) -> None:
+        """Validate schedules configuration
+
+        Args:
+            schedules: List of schedule configurations
+        """
+        if not schedules:
+            self.validation_errors.append("At least one schedule must be defined")
+            return
+
+        for idx, schedule in enumerate(schedules):
+            if "Name" not in schedule:
+                self.validation_errors.append(f"Schedule {idx} missing 'Name'")
+            if "Sources" not in schedule:
+                self.validation_errors.append(
+                    f"Schedule '{schedule.get('Name', idx)}' missing 'Sources'"
+                )
+            if "Targets" not in schedule:
+                self.validation_errors.append(
+                    f"Schedule '{schedule.get('Name', idx)}' missing 'Targets'"
+                )
+
+    def validate_sources(self, sources: Dict[str, Any]) -> None:
+        """Validate sources configuration
+
+        Args:
+            sources: Dictionary of source configurations
+        """
+        if not sources:
+            self.validation_errors.append("At least one source must be defined")
+            return
+
+        for source_name, source_config in sources.items():
+            if "ProtocolAdapter" not in source_config:
+                self.validation_errors.append(
+                    f"Source '{source_name}' missing 'ProtocolAdapter'"
+                )
+            else:
+                # Strict validation: Check if protocol is supported
+                protocol = source_config["ProtocolAdapter"]
+                if protocol not in self.sfc_knowledge["supported_protocols"]:
+                    self.validation_errors.append(
+                        f"Source '{source_name}' uses unsupported protocol adapter: '{protocol}'. "
+                        f"Supported protocols: {', '.join(sorted(self.sfc_knowledge['supported_protocols'].keys()))}"
+                    )
+
+            if "Channels" not in source_config:
+                self.validation_errors.append(
+                    f"Source '{source_name}' missing 'Channels'"
+                )
+
+    def validate_targets(self, targets: Dict[str, Any]) -> None:
+        """Validate targets configuration
+
+        Args:
+            targets: Dictionary of target configurations
+        """
+        if not targets:
+            self.validation_errors.append("At least one target must be defined")
+            return
+
+        for target_name, target_config in targets.items():
+            if "TargetType" not in target_config:
+                self.validation_errors.append(
+                    f"Target '{target_name}' missing 'TargetType'"
+                )
+            else:
+                # Strict validation: Check if target type is supported
+                target_type = target_config["TargetType"]
+
+                # Check in AWS targets
+                aws_targets = self.sfc_knowledge["aws_targets"].keys()
+                edge_targets = [
+                    target["description"]
+                    for target in self.sfc_knowledge["edge_targets"].values()
+                ]
+
+                # Special case handling for edge targets that have -TARGET suffix
+                if target_type.endswith("-TARGET"):
+                    base_type = target_type[:-7]  # Remove -TARGET suffix
+                    if base_type in self.sfc_knowledge["edge_targets"]:
+                        continue
+
+                # Check if target is in either AWS targets or edge targets
+                if target_type not in aws_targets and target_type not in edge_targets:
+                    self.validation_errors.append(
+                        f"Target '{target_name}' uses unsupported target type: '{target_type}'. "
+                        f"Supported AWS targets: {', '.join(sorted(aws_targets))}. "
+                        f"Supported edge targets: {', '.join(sorted(self.sfc_knowledge['edge_targets'].keys()))}"
+                    )
+
+    def validate_adapters(self, config: Dict[str, Any]) -> None:
+        """Validate adapter configurations
+
+        Args:
+            config: SFC configuration dictionary
+        """
+        # Check if adapter types or servers are defined
+        has_adapter_types = bool(config.get("AdapterTypes"))
+        has_adapter_servers = bool(config.get("AdapterServers"))
+
+        if not has_adapter_types and not has_adapter_servers:
+            self.validation_errors.append(
+                "Either 'AdapterTypes' or 'AdapterServers' must be defined"
+            )
+
+        # Similar check for targets
+        has_target_types = bool(config.get("TargetTypes"))
+        has_target_servers = bool(config.get("TargetServers"))
+
+        if not has_target_types and not has_target_servers:
+            self.validation_errors.append(
+                "Either 'TargetTypes' or 'TargetServers' must be defined"
+            )
+
+def what_is_sfc() -> str:
+    """Provide an explanation of what SFC (Shop Floor Connectivity) is
+
+    Returns:
+        String explanation of SFC
+    """
+    return """
+🏭 **Shop Floor Connectivity (SFC)**
+
+Shop Floor Connectivity (SFC) is an industrial data ingestion enabler, that can quickly deliver customizable greenfield & brownfield connectivity solutions.
+
+**Key Features:**
+• **Industrial Connectivity**: Connect to various industrial protocols and devices
+• **Flexible Integration**: Support for both greenfield (new) and existing (brownfield) installations
+• **Data Ingestion**: Collect, transform, and route industrial data
+• **AWS Integration**: Seamless connection to AWS services for processing and analysis
+• **Customizable**: Adaptable to specific industrial environments and requirements
+• **Scalable**: Handle diverse data volumes from industrial equipment
+
+**Benefits:**
+• Accelerate digital transformation of industrial environments
+• Bridge the gap between OT (Operational Technology) and IT systems
+• Enable data-driven decision making for manufacturing processes
+• Reduce time-to-value for industrial IoT implementations
+• Simplify complex industrial data integration challenges
+"""
+
+def load_sfc_knowledge() -> Dict[str, Any]:
+    """Load SFC framework knowledge base
+
+    Returns:
+        Dictionary containing SFC framework knowledge
+    """
+    return {
+        "supported_protocols": {
+            "OPCUA": {
+                "description": "OPC Unified Architecture",
+                "port_default": 4840,
+            },
+            "MODBUS": {"description": "Modbus TCP/IP", "port_default": 502},
+            "S7": {"description": "Siemens S7 Communication", "port_default": 102},
+            "MQTT": {
+                "description": "Message Queuing Telemetry Transport",
+                "port_default": 1883,
+            },
+            "REST": {"description": "RESTful HTTP API", "port_default": 80},
+            "SQL": {"description": "SQL Database", "port_default": 1433},
+            "SNMP": {
+                "description": "Simple Network Management Protocol",
+                "port_default": 161,
+            },
+            "PCCC": {
+                "description": "Allen-Bradley Rockwell PCCC",
+                "port_default": 44818,
+            },
+            "ADS": {"description": "Beckhoff ADS", "port_default": 48898},
+            "J1939": {
+                "description": "Vehicle CAN Bus Protocol",
+                "port_default": None,
+            },
+            "SLMP": {"description": "Mitsubishi/Melsec SLMP", "port_default": 5007},
+            "NATS": {"description": "NATS Messaging", "port_default": 4222},
+            "OPCDA": {"description": "OPC Data Access", "port_default": None},
+            "SIMULATOR": {"description": "Data Simulator", "port_default": None},
+        },
+        "aws_targets": {
+            "AWS-IOT-CORE": {"service": "AWS IoT Core", "real_time": True},
+            "AWS-IOT-ANALYTICS": {
+                "service": "AWS IoT Analytics",
+                "real_time": False,
+            },
+            "AWS-SITEWISE": {"service": "AWS IoT SiteWise", "real_time": True},
+            "AWS-S3": {"service": "Amazon S3", "real_time": False},
+            "AWS-S3-TABLES": {
+                "service": "Amazon S3 Tables (S3Tables)",
+                "real_time": False,
+                "description": "AWS S3 Tables (also known as S3Tables, Iceberg or AWS-S3-TABLES) target adapter enables writing data to S3 in a structured format based on Apache Iceberg table format. Supports Parquet, JSON, and CSV formats with customizable partitioning, schema definition, and compression options. The Iceberg-compatible format allows for efficient data querying and analytics.",
+            },
+            "AWS-KINESIS": {"service": "Amazon Kinesis", "real_time": True},
+            "AWS-KINESIS-FIREHOSE": {
+                "service": "Amazon Kinesis Data Firehose",
+                "real_time": False,
+            },
+            "AWS-LAMBDA": {"service": "AWS Lambda", "real_time": True},
+            "AWS-SNS": {"service": "Amazon SNS", "real_time": True},
+            "AWS-SQS": {"service": "Amazon SQS", "real_time": True},
+            "AWS-TIMESTREAM": {"service": "Amazon Timestream", "real_time": True},
+            "AWS-MSK": {"service": "Amazon MSK", "real_time": True},
+        },
+        "edge_targets": {
+            "OPCUA": {"description": "OPC-UA Server"},
+            "OPCUA-WRITER": {"description": "OPC-UA Writer"},
+            "DEBUG": {"description": "Debug Terminal"},
+            "FILE": {"description": "File System"},
+            "MQTT": {"description": "MQTT Broker"},
+            "NATS": {"description": "NATS Server"},
+        },
+        "common_issues": {
+            "connection": [
+                "Network connectivity",
+                "Firewall rules",
+                "Authentication",
+            ],
+            "configuration": [
+                "Missing required fields",
+                "Invalid JSON",
+                "Type mismatches",
+            ],
+            "performance": [
+                "High CPU usage",
+                "Memory leaks",
+                "Network bottlenecks",
+            ],
+            "data_quality": [
+                "Missing data points",
+                "Timestamp issues",
+                "Data transformation errors",
+            ],
+        },
+        "required_config_sections": [
+            "AWSVersion",
+            "Schedules",
+            "Sources",
+            "Targets",
+        ],
+        "aws_version": "2022-04-02",
+    }
+
 
 def init_sfc_repository():
     """
