@@ -59,7 +59,7 @@ include = ["sfc_wizard*"]
 exclude = ["tests*", "scripts*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.json"]
+"*" = ["*.json", "html/*.html", "html/assets/*.js", "html/assets/*.css", "html/assets/*.map"]
 
 [tool.black]
 line-length = 88
