@@ -28,9 +28,21 @@ body {
 .chat-header {
     background: linear-gradient(135deg, #7c3aed, #0ee5e7);
     color: white;
-    padding: 5px;
-    text-align: center;
+    padding: 10px 5px 5px 23px;
+    text-align: left;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.header-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 8px;
+    object-fit: cover;
 }
 
 .chat-header h1 {

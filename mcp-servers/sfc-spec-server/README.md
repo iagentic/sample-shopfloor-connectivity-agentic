@@ -14,11 +14,13 @@ The server provides the following tools:
 - **query_docs**: Searches for documents across different types with filtering options
 - **search_doc_content**: Searches for text patterns within documents
 - **extract_json_examples**: Extracts JSON examples from documents matching flexible patterns (supports wildcards)
+- **what_is_sfc**: Provides an explanation of what Shop Floor Connectivity (SFC) is and its key features
 
 ### Configuration Tools
 
 - **get_sfc_config_examples**: Retrieves SFC configuration examples with flexible name pattern matching
-- **validate_sfc_config**: Performs basic validation of an SFC configuration
+- **create_sfc_config_template**: Generates a configuration template for a specific protocol and target
+- **validate_sfc_config**: Performs validation of an SFC configuration against required schemas and best practices
 
 ## Installation
 
@@ -196,6 +198,15 @@ Once connected to an MCP client, you can use the tools with the following JSON f
 }
 ```
 
+#### What is SFC
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "what_is_sfc",
+  "arguments": {}
+}
+```
+
 ### Advanced Documentation Search
 
 #### Query Documents with Filtering
@@ -256,7 +267,20 @@ Once connected to an MCP client, you can use the tools with the following JSON f
 }
 ```
 
-### Configuration Validation
+### Configuration Tools
+
+#### Create SFC Configuration Template
+```json
+{
+  "server_name": "sfc-spec-server",
+  "tool_name": "create_sfc_config_template",
+  "arguments": {
+    "protocol": "OPCUA",
+    "target": "AWS-S3",
+    "environment": "development"
+  }
+}
+```
 
 #### Validate SFC Configuration
 ```json
@@ -264,54 +288,7 @@ Once connected to an MCP client, you can use the tools with the following JSON f
   "server_name": "sfc-spec-server",
   "tool_name": "validate_sfc_config",
   "arguments": {
-    "config": {
-      "name": "MyOPCUAAdapter",
-      "adapterType": "OPCUA",
-      "description": "OPC UA adapter for industrial equipment",
-      "sources": [
-        {
-          "name": "OpcuaSource1",
-          "endpoint": "opc.tcp://localhost:4840/opcua/server",
-          "securityPolicy": "None",
-          "topics": [
-            {
-              "name": "Temperature",
-              "sourcePath": "ns=2;i=1001",
-              "dataType": "Float"
-            },
-            {
-              "name": "Pressure",
-              "sourcePath": "ns=2;i=1002",
-              "dataType": "Float"
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
-```
-
-#### Validate Target Configuration
-```json
-{
-  "server_name": "sfc-spec-server",
-  "tool_name": "validate_sfc_config",
-  "arguments": {
-    "config": {
-      "name": "MyS3Target",
-      "targetType": "AWS_S3",
-      "description": "AWS S3 target for data storage",
-      "targets": [
-        {
-          "name": "S3Bucket1",
-          "bucket": "my-sfc-data-bucket",
-          "region": "us-east-1",
-          "prefix": "industrial-data/",
-          "compression": "gzip"
-        }
-      ]
-    }
+    "config_json": "{\"AWSVersion\":\"2022-04-02\",\"Name\":\"OPCUA to AWS-S3 Configuration\",\"Description\":\"Development configuration for OPCUA protocol to AWS-S3 target\",\"LogLevel\":\"Trace\",\"Schedules\":[{\"Name\":\"OPCUASchedule\",\"Interval\":1000,\"Active\":true,\"TimestampLevel\":\"Both\",\"Sources\":{\"OPCUA-SOURCE\":[\"*\"]},\"Targets\":[\"AWS-S3Target\"]}],\"Sources\":{\"OPCUA-SOURCE\":{\"Name\":\"OPCUASource\",\"ProtocolAdapter\":\"OPCUA\",\"Description\":\"OPCUA source configuration\",\"Channels\":{}}},\"Targets\":{\"AWS-S3Target\":{\"Active\":true,\"TargetType\":\"AWS-S3\"}},\"TargetTypes\":{\"AWS-S3\":{\"JarFiles\":[\"${MODULES_DIR}/aws-s3-target/lib\"],\"FactoryClassName\":\"com.amazonaws.sfc.awss3.AwsS3TargetWriter\"}},\"AdapterTypes\":{\"OPCUA\":{\"JarFiles\":[\"${MODULES_DIR}/opcua/lib\"],\"FactoryClassName\":\"com.amazonaws.sfc.opcua.OpcuaAdapter\"}},\"ProtocolAdapters\":{}}"
   }
 }
 ```
@@ -358,29 +335,23 @@ Once connected to an MCP client, you can use the tools with the following JSON f
 [
   {
     "server_name": "sfc-spec-server",
-    "tool_name": "get_sfc_config_examples",
+    "tool_name": "what_is_sfc",
+    "arguments": {}
+  },
+  {
+    "server_name": "sfc-spec-server",
+    "tool_name": "create_sfc_config_template",
     "arguments": {
-      "component_type": "adapter",
-      "name_pattern": "*MQTT*"
+      "protocol": "OPCUA",
+      "target": "AWS-S3",
+      "environment": "development"
     }
   },
   {
     "server_name": "sfc-spec-server",
     "tool_name": "validate_sfc_config",
     "arguments": {
-      "config": {
-        "name": "MyMQTTAdapter",
-        "adapterType": "MQTT",
-        "sources": [
-          {
-            "name": "MqttSource1",
-            "broker": "mqtt://localhost:1883",
-            "topics": [
-              {"name": "sensor1", "sourcePath": "sensors/temperature"}
-            ]
-          }
-        ]
-      }
+      "config_json": "JSON_CONFIGURATION_STRING"
     }
   }
 ]
@@ -392,7 +363,7 @@ This server is designed to be used with AI assistants that support the Model Con
 
 1. Access and search SFC documentation
 2. Extract configuration examples and JSON snippets
-3. Validate user-provided configurations
+3. Generate and validate SFC configurations
 4. Provide relevant guidance about SFC components
 
 By leveraging this MCP server, assistants can provide more accurate and context-aware help with SFC-related tasks without requiring the full documentation to be included in their context window.
