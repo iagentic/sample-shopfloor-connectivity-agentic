@@ -5,7 +5,7 @@
   "LogLevel": "Trace",
   "Schedules": [
     {
-      "Name": "SinusSchedule",
+      "Name": "Simulator schedule",
       "Interval": 50,
       "Active": true,
       "TimestampLevel": "Both",

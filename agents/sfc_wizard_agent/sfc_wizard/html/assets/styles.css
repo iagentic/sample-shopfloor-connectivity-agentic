@@ -162,6 +162,18 @@ body {
     text-align: left;
 }
 
+/* Fix for table headers */
+.message-content thead {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 1;
+}
+
+.message-content table tr:nth-child(1) {
+    background-color: #f8f9fa;
+}
+
 /* Add styling for lists created by Showdown */
 .message-content ul,
 .message-content ol {

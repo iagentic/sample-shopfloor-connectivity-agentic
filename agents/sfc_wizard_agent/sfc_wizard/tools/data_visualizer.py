@@ -13,6 +13,12 @@ import curses
 import time
 import datetime
 import jmespath
+import io
+import base64
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for headless server use
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from typing import List, Dict, Any, Optional, Tuple
 
 
@@ -521,6 +527,72 @@ class DataVisualizer:
 
         return f"✅ Successfully visualized {len(self.data_points)} data points from expression: '{self.title}'"
 
+    def _generate_timeseries_graph(self) -> str:
+        """Generate a time series graph using matplotlib and encode as base64 for embedding in markdown"""
+        if not self.data_points or len(self.data_points) < 2:
+            return ""
+        
+        # Convert timestamps to datetime objects
+        datetime_objects = []
+        for ts in self.timestamps:
+            try:
+                dt = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                datetime_objects.append(dt)
+            except (ValueError, TypeError, AttributeError):
+                # Use current time as fallback for invalid timestamps
+                datetime_objects.append(datetime.datetime.now())
+        
+        # Create a new figure with appropriate size for embedding
+        plt.figure(figsize=(10, 6))
+        
+        # Create the time series plot
+        plt.plot(datetime_objects, self.data_points, '-o', color='#4f46e5', linewidth=2, markersize=4)
+        
+        # Add labels and title
+        plt.title(f"Time Series: {self.jmespath_expr}", fontsize=14, pad=10)
+        plt.xlabel("Time", fontsize=12, labelpad=10)
+        plt.ylabel("Value", fontsize=12, labelpad=10)
+        
+        # Format x-axis dates
+        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+        plt.xticks(rotation=45)
+        
+        # Add grid for better readability
+        plt.grid(True, linestyle='--', alpha=0.7)
+        
+        # Add trend line
+        if len(self.data_points) > 2:
+            try:
+                import numpy as np
+                from scipy import stats
+                
+                # Simple linear regression for trend
+                x = np.arange(len(self.data_points))
+                slope, intercept, r_value, p_value, std_err = stats.linregress(x, self.data_points)
+                trend_line = intercept + slope * x
+                plt.plot(datetime_objects, trend_line, 'r--', alpha=0.6, label=f'Trend (slope: {slope:.3f})')
+                plt.legend(loc='best')
+            except ImportError:
+                # If scipy is not available, skip trend line
+                pass
+        
+        # Tight layout to ensure everything fits
+        plt.tight_layout()
+        
+        # Save the plot to a bytes buffer
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=100)
+        buf.seek(0)
+        
+        # Encode the image as base64 for embedding in markdown
+        img_str = base64.b64encode(buf.getvalue()).decode('ascii')
+        
+        # Close the plot to free memory
+        plt.close()
+        
+        # Return the base64 encoded image using direct HTML (more compatible with UI renderers)
+        return f'<img src="data:image/png;base64,{img_str}" alt="Time Series Graph" style="max-width: 100%;">'
+
     def _generate_markdown_graph(self) -> str:
         """Generate a markdown representation of the graph for UI mode"""
         if not self.data_points:
@@ -548,10 +620,33 @@ class DataVisualizer:
             except:
                 pass
         
-        # Add data table for simple visualization
-        result += "### Data Points\n\n"
-        result += "| # | Value | Timestamp |\n"
-        result += "|---|-------|----------|\n"
+        # Generate the time series graph and data table side by side using HTML
+        result += "<div style='display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;'>\n\n"
+        
+        # Left column - Time Series Graph
+        result += "<div style='flex: 1; min-width: 400px;'>\n\n"
+        result += "<h3>Time Series Graph</h3>\n\n"
+        graph_image = self._generate_timeseries_graph()
+        if graph_image:
+            result += graph_image + "\n\n"
+        else:
+            result += "*Not enough data points to generate a graph*\n\n"
+        result += "</div>\n\n"
+        
+        # Right column - Data Table - using HTML table instead of markdown for consistency with HTML layout
+        result += "<div style='flex: 1; min-width: 300px;'>\n\n"
+        result += "<h3>Data Points</h3>\n\n"
+        
+        # Start HTML table with styling that matches markdown tables
+        result += "<table style='border-collapse: collapse; width: 100%; margin: 6px 0;'>\n"
+        result += "<thead style='position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;'>\n"
+        result += "<tr>\n"
+        result += "<th style='border: 1px solid #ddd; padding: 4px; text-align: left;'>#</th>\n"
+        result += "<th style='border: 1px solid #ddd; padding: 4px; text-align: left;'>Value</th>\n"
+        result += "<th style='border: 1px solid #ddd; padding: 4px; text-align: left;'>Timestamp</th>\n"
+        result += "</tr>\n"
+        result += "</thead>\n"
+        result += "<tbody>\n"
         
         # Display data points (limit to max 20 for readability)
         display_count = min(20, len(self.data_points))
@@ -583,26 +678,37 @@ class DataVisualizer:
                 except:
                     timestamp = str(self.timestamps[idx])[:10]
             
-            result += f"| {idx+1} | {value:.2f} | {timestamp} |\n"
+            result += "<tr>\n"
+            result += f"<td style='border: 1px solid #ddd; padding: 4px; text-align: left;'>{idx+1}</td>\n"
+            result += f"<td style='border: 1px solid #ddd; padding: 4px; text-align: left;'>{value:.2f}</td>\n"
+            result += f"<td style='border: 1px solid #ddd; padding: 4px; text-align: left;'>{timestamp}</td>\n"
+            result += "</tr>\n"
+        
+        # Close HTML table
+        result += "</tbody>\n"
+        result += "</table>\n"
         
         # Add note if we didn't show all points
         if len(self.data_points) > display_count:
-            result += f"\n*Showing {len(indices_to_show)} of {len(self.data_points)} data points*\n"
-            
-        # Add trend indicators
+            result += f"\n<p><em>Showing {len(indices_to_show)} of {len(self.data_points)} data points</em></p>\n"
+        
+        result += "</div>\n\n"
+        result += "</div>\n\n"
+        
+        # Add trend indicators outside the flex container
         if len(self.data_points) > 1:
             first_value = self.data_points[0]
             last_value = self.data_points[-1]
             change = last_value - first_value
             percent_change = (change / abs(first_value)) * 100 if first_value != 0 else 0
             
-            result += "\n### Trend\n\n"
+            result += "\n<h3>Trend</h3>\n\n"
             if change > 0:
-                result += f"📈 **Increasing**: +{change:.2f} (+{percent_change:.1f}%)\n"
+                result += f"📈 <strong>Increasing</strong>: +{change:.2f} (+{percent_change:.1f}%)<br>\n"
             elif change < 0:
-                result += f"📉 **Decreasing**: {change:.2f} ({percent_change:.1f}%)\n"
+                result += f"📉 <strong>Decreasing</strong>: {change:.2f} ({percent_change:.1f}%)<br>\n"
             else:
-                result += "➡️ **Stable**: No change\n"
+                result += "➡️ <strong>Stable</strong>: No change<br>\n"
         
         return result
         

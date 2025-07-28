@@ -94,8 +94,12 @@ class SFCRunner:
             if not os.path.exists(runs_dir):
                 os.makedirs(runs_dir)
 
-            # Create a test directory with the config name inside the runs folder
-            test_dir = os.path.join(runs_dir, config_name)
+            # Add a timestamp suffix to the test directory name
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            folder_name = f"{config_name}_{timestamp}"
+            
+            # Create a test directory with the config name and timestamp inside the runs folder
+            test_dir = os.path.join(runs_dir, folder_name)
             if not os.path.exists(test_dir):
                 os.makedirs(test_dir)
 
@@ -112,8 +116,8 @@ class SFCRunner:
                 result = f"❌ Failed to fetch SFC release information: HTTP {response.status_code}"
                 return (
                     result,
-                    config_name,
-                    config_name,
+                    folder_name,
+                    folder_name,
                     config_filename,
                     active_processes,
                     log_tail_thread,
@@ -140,8 +144,8 @@ class SFCRunner:
                         result = f"❌ Failed to download SFC main binary: HTTP {tarball_response.status_code}"
                         return (
                             result,
-                            config_name,
-                            config_name,
+                            folder_name,
+                            folder_name,
                             config_filename,
                             active_processes,
                             log_tail_thread,
@@ -188,8 +192,8 @@ class SFCRunner:
                     )
                     return (
                         result,
-                        config_name,
-                        config_name,
+                        folder_name,
+                        folder_name,
                         config_filename,
                         active_processes,
                         log_tail_thread,
@@ -287,8 +291,8 @@ class SFCRunner:
                 )
                 return (
                     result,
-                    config_name,
-                    config_name,
+                    folder_name,
+                    folder_name,
                     config_filename,
                     active_processes,
                     log_tail_thread,
@@ -370,8 +374,8 @@ You can check the logs in the test directory for status information.
 
             return (
                 result,
-                config_name,
-                config_name,
+                folder_name,  # Use the timestamped folder name instead of just config_name
+                folder_name,  # Use the timestamped folder name instead of just config_name
                 config_filename,
                 active_processes,
                 log_tail_thread,
@@ -379,30 +383,39 @@ You can check the logs in the test directory for status information.
 
         except json.JSONDecodeError:
             result = "❌ Invalid JSON configuration provided"
+            # Even in error cases, generate a timestamped folder name
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            error_folder_name = f"{config_name or 'error'}_{timestamp}"
             return (
                 result,
-                config_name,
-                config_name,
+                error_folder_name,
+                error_folder_name,
                 "",
                 active_processes,
                 log_tail_thread,
             )
         except requests.RequestException as e:
             result = f"❌ Network error while fetching SFC: {str(e)}"
+            # Even in error cases, generate a timestamped folder name
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            error_folder_name = f"{config_name or 'error'}_{timestamp}"
             return (
                 result,
-                config_name,
-                config_name,
+                error_folder_name,
+                error_folder_name,
                 "",
                 active_processes,
                 log_tail_thread,
             )
         except Exception as e:
             result = f"❌ Error running SFC configuration: {str(e)}"
+            # Even in error cases, generate a timestamped folder name
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            error_folder_name = f"{config_name or 'error'}_{timestamp}"
             return (
                 result,
-                config_name,
-                config_name,
+                error_folder_name,
+                error_folder_name,
                 "",
                 active_processes,
                 log_tail_thread,
