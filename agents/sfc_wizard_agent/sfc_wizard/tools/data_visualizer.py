@@ -31,6 +31,7 @@ class DataVisualizer:
     def _load_data_files(self, data_dir: str) -> List[Dict]:
         """Load data from all JSON files in the directory recursively"""
         all_data = []
+        error_count = 0
 
         # Get a list of all JSON files in the directory and its subdirectories and sort them by name
         json_files = sorted(
@@ -45,8 +46,12 @@ class DataVisualizer:
                         all_data.extend(file_data)
                     else:
                         all_data.append(file_data)
-            except Exception as e:
-                print(f"Error loading {file_path}: {str(e)}")
+            except Exception:
+                error_count += 1
+
+        # Print a single message about errors if any occurred
+        if error_count > 0:
+            print(f"Could not load {error_count} file(s). Some data may be missing.")
 
         return all_data
 
@@ -80,6 +85,7 @@ class DataVisualizer:
         """Extract values and timestamps using the provided JMESPath expression"""
         values = []
         timestamps = []
+        error_count = 0
 
         for item in data:
             try:
@@ -91,8 +97,12 @@ class DataVisualizer:
                     # Extract timestamp from the item
                     timestamp = item.get("timestamp", "")
                     timestamps.append(timestamp)
-            except Exception as e:
-                print(f"Error extracting data: {str(e)}")
+            except Exception:
+                error_count += 1
+
+        # Print a single message if errors occurred
+        if error_count > 0:
+            print(f"Failed to extract data from {error_count} item(s) using expression '{jmespath_expr}'.")
 
         return values, timestamps
 
@@ -116,6 +126,7 @@ class DataVisualizer:
             try:
                 # Convert timestamps to datetime objects for comparison
                 datetime_objects = []
+                invalid_timestamp_count = 0
                 for ts in timestamps:
                     try:
                         # Handle ISO format timestamps
@@ -124,6 +135,7 @@ class DataVisualizer:
                     except (ValueError, TypeError, AttributeError):
                         # Skip invalid timestamps
                         datetime_objects.append(None)
+                        invalid_timestamp_count += 1
 
                 # Filter out None values and find latest time
                 valid_datetimes = [dt for dt in datetime_objects if dt is not None]
@@ -146,9 +158,9 @@ class DataVisualizer:
                     if filtered_data:
                         values = filtered_data
                         timestamps = filtered_timestamps
-            except Exception as e:
+            except Exception:
                 # If there's an error in filtering, fall back to using all data
-                print(f"Error filtering by timeframe: {str(e)}")
+                print("Error filtering data by timeframe. Using all available data instead.")
 
         # Store the data
         self.data_points = values

@@ -9,11 +9,15 @@ class SFCWizardChat {
         this.isReady = false;
         this.sessionId = null;
         this.sessionExpiryMinutes = 60;
+        // Initialize Showdown markdown converter with standard options
         this.markdownConverter = new showdown.Converter({
             tables: true,
             tasklists: true,
             strikethrough: true,
-            emoji: true
+            emoji: true,
+            parseImgDimensions: true,
+            simpleLineBreaks: true,
+            openLinksInNewWindow: true
         });
         
         // Streaming state
@@ -246,6 +250,54 @@ class SFCWizardChat {
         this.messageInput.focus();
     }
 
+    // Helper function to convert numbered lists to bullet lists
+    preprocessMarkdown(markdown) {
+        // First, split the markdown into lines to handle line-by-line
+        const lines = markdown.split('\n');
+        
+        // Track if we're inside a numbered list item
+        let inNumberedItem = false;
+        let currentIndent = '';
+        let currentNumber = '';
+        
+        // Process each line
+        for (let i = 0; i < lines.length; i++) {
+            // Check if this line starts a numbered list item
+            const listItemMatch = lines[i].match(/^(\s*)(\d+)\.(\s+)(.+)$/);
+            
+            if (listItemMatch) {
+                // This is a new numbered list item
+                const [, indent, number, space, content] = listItemMatch;
+                
+                // Replace with bullet and bold number
+                lines[i] = `${indent}* **${number}.** ${content}`;
+                
+                // Remember we're in a numbered item now
+                inNumberedItem = true;
+                currentIndent = indent;
+                currentNumber = number;
+            } 
+            else if (inNumberedItem) {
+                // Check if this is a continuation line of the current item
+                // (indented and not starting a new list item or another block element)
+                const continuationMatch = lines[i].match(/^(\s+)([^\s*-].+)$/);
+                
+                if (continuationMatch && !lines[i].trim().startsWith('*') && 
+                    !lines[i].trim().startsWith('#') && 
+                    !lines[i].trim().startsWith('```')) {
+                    // This is a continuation line, keep it part of the same bullet item
+                    // No change needed, it will be properly rendered as part of the bullet item
+                } else {
+                    // This line is not part of the current item anymore
+                    inNumberedItem = false;
+                }
+            }
+        }
+        
+        // Join the processed lines back into a string
+        return lines.join('\n');
+    }
+    
     displayMessage(message) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${message.role}`;
@@ -263,8 +315,10 @@ class SFCWizardChat {
         if (message.role === 'assistant') {
             // Process JSON blocks first
             const processedContent = this.processJsonBlocks(message.content);
+            // Preprocess markdown to preserve list numbering
+            const preprocessedMarkdown = this.preprocessMarkdown(processedContent);
             // Convert markdown to HTML
-            content.innerHTML = this.markdownConverter.makeHtml(processedContent);
+            content.innerHTML = this.markdownConverter.makeHtml(preprocessedMarkdown);
         } else {
             // For user messages, just escape HTML
             content.textContent = message.content;
@@ -378,7 +432,8 @@ class SFCWizardChat {
         
         // Update the content with streaming cursor
         const processedContent = this.processJsonBlocks(this.streamingAccumulatedText);
-        const htmlContent = this.markdownConverter.makeHtml(processedContent);
+        const preprocessedMarkdown = this.preprocessMarkdown(processedContent);
+        const htmlContent = this.markdownConverter.makeHtml(preprocessedMarkdown);
         
         // Find the timestamp element to preserve it
         const timestamp = this.streamingContentDiv.querySelector('.timestamp');

@@ -169,7 +169,13 @@ class SFCWizardAgent:
             Note: When follow=True, the function will enter a real-time viewing mode.
                   The only way to exit this mode is by pressing Ctrl+C in the terminal.
                   After exiting, you'll be returned to the command prompt.
+                  
+                  This feature is only available in CLI mode and will be disabled in UI mode.
             """
+            # Disable follow mode in UI mode since it requires terminal interaction
+            if self.is_ui_mode and follow:
+                return "❌ Log follow mode is not available in the web interface. Please use the standard log viewing without the follow option."
+                
             return SFCLogOperations.tail_logs(
                 self.current_config_name, lines, follow, self.log_buffer
             )
