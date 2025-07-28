@@ -91,7 +91,7 @@ class ChatUI:
         # Store conversation history per session with timestamps
         self.conversations: Dict[str, List[Dict]] = {}
         self.session_timestamps: Dict[str, datetime] = {}
-        self.session_expiry_minutes = 5
+        self.session_expiry_minutes = 60
 
         # SFC Wizard Agent will be initialized later within MCP context
         self.sfc_agent = None

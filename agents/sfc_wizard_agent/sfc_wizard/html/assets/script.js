@@ -8,7 +8,7 @@ class SFCWizardChat {
         this.socket = null;
         this.isReady = false;
         this.sessionId = null;
-        this.sessionExpiryMinutes = 5;
+        this.sessionExpiryMinutes = 60;
         this.markdownConverter = new showdown.Converter({
             tables: true,
             tasklists: true,
