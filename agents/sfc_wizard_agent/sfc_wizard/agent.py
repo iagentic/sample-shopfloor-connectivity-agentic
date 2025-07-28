@@ -200,20 +200,39 @@ class SFCWizardAgent:
             )
 
         @tool
-        def visualize_data(minutes: int = 10, jmespath_expr: str = "value") -> str:
+        def visualize_data(minutes: int = 10, jmespath_expr: str = "value", seconds: int = None) -> str:
             """Visualize data from the currently running SFC configuration with FILE-TARGET enabled.
 
-            Shows the data from the last N minutes using an ncurses-based visualizer.
+            Shows the data using a visualizer (ncurses in CLI mode or markdown in UI mode).
 
             Args:
-                minutes: Number of minutes of data to visualize (default: 10)
+                minutes: Number of minutes of data to visualize (default: 10, ignored if seconds is provided)
                 jmespath_expr: JMESPath expression to extract values from the data (e.g., "sources.SinusSource.values.sinus.value")
+                seconds: Optional number of seconds for finer time control (overrides minutes when provided)
+                         For UI mode, you can specify smaller timeframes: 5, 10, 15, 20, 30, 50 seconds
             """
-            return visualize_file_target_data(
+            # Debug print for UI mode detection
+            print(f"🔍 Visualization UI mode detected: {self.is_ui_mode}")
+            
+            # Log timeframe info
+            if seconds is not None:
+                print(f"📊 Visualizing data from the last {seconds} seconds")
+            else:
+                print(f"📊 Visualizing data from the last {minutes} minutes")
+            
+            result = visualize_file_target_data(
                 config_name=self.current_config_name,
                 minutes=minutes,
                 jmespath_expr=jmespath_expr,
+                ui_mode=self.is_ui_mode,
+                seconds=seconds,
             )
+            
+            # Force the visualization to print directly in UI mode
+            if self.is_ui_mode:
+                print(f"\n{result}\n")
+                
+            return result
 
         @tool
         def run_example(input_text: str) -> str:

@@ -343,6 +343,11 @@ class ChatUI:
 
                         # Ensure any remaining output is flushed
                         streaming_capture.flush()
+                        
+                        # For visualization data, force flush any pending output
+                        if "visualize" in user_message.lower():
+                            print("Ensuring visualization data is properly displayed...")
+                            self.socketio.sleep(0.5)  # Short delay to ensure output is processed
 
                     finally:
                         # Always restore original stdout/stderr

@@ -399,19 +399,20 @@ class DataVisualizer:
             y += slope * step_size
 
     def visualize(
-        self, data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None
+        self, data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None, ui_mode: bool = False
     ) -> str:
         """
-        Visualize time series data using ncurses
+        Visualize time series data using ncurses or markdown format
 
         Args:
             data_dir: Directory containing the JSON data files
             jmespath_expr: JMESPath expression to extract the value to plot
             timeframe_seconds: Optional timeframe in seconds to display (e.g., 15, 30)
                               If None, displays all available data
+            ui_mode: If True, returns a markdown representation instead of using ncurses
 
         Returns:
-            Result message
+            Result message or markdown graph
         """
         # Store data_dir and jmespath_expr for timeframe selection
         self.data_dir = data_dir
@@ -435,7 +436,11 @@ class DataVisualizer:
             )
             return f"❌ No data points found in {data_dir} using expression '{jmespath_expr}'{timeframe_msg}"
 
-        # Initialize ncurses
+        # If in UI mode, generate markdown representation
+        if ui_mode:
+            return self._generate_markdown_graph()
+        
+        # Otherwise initialize ncurses for terminal display
         try:
             # Wrapper to ensure proper cleanup
             result = curses.wrapper(self._visualize_with_curses)
@@ -504,6 +509,91 @@ class DataVisualizer:
 
         return f"✅ Successfully visualized {len(self.data_points)} data points from expression: '{self.title}'"
 
+    def _generate_markdown_graph(self) -> str:
+        """Generate a markdown representation of the graph for UI mode"""
+        if not self.data_points:
+            return "❌ No data points to visualize"
+        
+        # Create a simplified version focused on readability in the web UI
+        
+        # Add title and metadata
+        result = f"## {self.title}\n\n"
+        
+        # Add statistics
+        result += f"**Points:** {len(self.data_points)} | **Min:** {self.min_value:.2f} | **Max:** {self.max_value:.2f}"
+        if hasattr(self, 'latest_value') and self.latest_value is not None:
+            result += f" | **Latest:** {self.latest_value:.2f}"
+        result += "\n\n"
+        
+        # Add timeframe info
+        if self.current_timeframe:
+            result += f"*Showing last {self.current_timeframe} seconds of data*\n\n"
+        elif self.timestamps and len(self.timestamps) > 1:
+            try:
+                start_time = datetime.datetime.fromisoformat(self.timestamps[0].replace("Z", "+00:00")).strftime("%H:%M:%S")
+                end_time = datetime.datetime.fromisoformat(self.timestamps[-1].replace("Z", "+00:00")).strftime("%H:%M:%S")
+                result += f"*Data from {start_time} to {end_time}*\n\n"
+            except:
+                pass
+        
+        # Add data table for simple visualization
+        result += "### Data Points\n\n"
+        result += "| # | Value | Timestamp |\n"
+        result += "|---|-------|----------|\n"
+        
+        # Display data points (limit to max 20 for readability)
+        display_count = min(20, len(self.data_points))
+        step = max(1, len(self.data_points) // display_count)
+        
+        indices_to_show = []
+        # Always show first, last and some points in between
+        if len(self.data_points) > 0:
+            indices_to_show.append(0)  # First point
+        if len(self.data_points) > 1:
+            indices_to_show.append(len(self.data_points) - 1)  # Last point
+            
+        # Add evenly distributed points in the middle
+        for i in range(step, len(self.data_points) - 1, step):
+            if len(indices_to_show) < display_count:
+                indices_to_show.append(i)
+        
+        # Sort indices to display in order
+        indices_to_show.sort()
+        
+        # Add data rows
+        for idx in indices_to_show:
+            value = self.data_points[idx]
+            timestamp = ""
+            if idx < len(self.timestamps) and self.timestamps[idx]:
+                try:
+                    dt = datetime.datetime.fromisoformat(self.timestamps[idx].replace("Z", "+00:00"))
+                    timestamp = dt.strftime("%H:%M:%S")
+                except:
+                    timestamp = str(self.timestamps[idx])[:10]
+            
+            result += f"| {idx+1} | {value:.2f} | {timestamp} |\n"
+        
+        # Add note if we didn't show all points
+        if len(self.data_points) > display_count:
+            result += f"\n*Showing {len(indices_to_show)} of {len(self.data_points)} data points*\n"
+            
+        # Add trend indicators
+        if len(self.data_points) > 1:
+            first_value = self.data_points[0]
+            last_value = self.data_points[-1]
+            change = last_value - first_value
+            percent_change = (change / abs(first_value)) * 100 if first_value != 0 else 0
+            
+            result += "\n### Trend\n\n"
+            if change > 0:
+                result += f"📈 **Increasing**: +{change:.2f} (+{percent_change:.1f}%)\n"
+            elif change < 0:
+                result += f"📉 **Decreasing**: {change:.2f} ({percent_change:.1f}%)\n"
+            else:
+                result += "➡️ **Stable**: No change\n"
+        
+        return result
+        
     def _show_timeframe_menu(self, stdscr):
         """Show a menu for selecting different timeframes"""
         # Define available timeframe options (in seconds)
@@ -594,7 +684,7 @@ class DataVisualizer:
 
 
 def visualize_time_series(
-    data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None
+    data_dir: str, jmespath_expr: str, timeframe_seconds: Optional[int] = None, ui_mode: bool = False
 ) -> str:
     """
     Visualize time series data from SFC data files
@@ -604,9 +694,10 @@ def visualize_time_series(
         jmespath_expr: JMESPath expression to extract the value to plot (e.g., "sources.SinusSource.values.sinus.value")
         timeframe_seconds: Optional timeframe in seconds to display (e.g., 15, 30)
                           If None, displays all available data
+        ui_mode: If True, returns a markdown representation instead of using ncurses
 
     Returns:
-        Result message
+        Result message or markdown graph
     """
     # First, check if the directory exists
     if not os.path.isdir(data_dir):
@@ -619,7 +710,7 @@ def visualize_time_series(
 
     # Initialize the visualizer and run it
     visualizer = DataVisualizer()
-    result = visualizer.visualize(data_dir, jmespath_expr, timeframe_seconds)
+    result = visualizer.visualize(data_dir, jmespath_expr, timeframe_seconds, ui_mode)
 
     return result
 
