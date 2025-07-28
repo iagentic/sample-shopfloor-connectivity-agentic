@@ -30,7 +30,7 @@ class SFCFolderOperations:
         """
         try:
             base_dir = os.getcwd()
-            runs_dir = os.path.join(base_dir, "runs")
+            runs_dir = os.path.join(base_dir, ".sfc/runs")
 
             # Check if runs folder exists
             if not os.path.exists(runs_dir) or not os.path.isdir(runs_dir):
@@ -78,7 +78,7 @@ class SFCFolderOperations:
 
         try:
             base_dir = os.getcwd()
-            runs_dir = os.path.join(base_dir, "runs")
+            runs_dir = os.path.join(base_dir, ".sfc/runs")
 
             # Check if runs folder exists again (in case it was deleted between calls)
             if not os.path.exists(runs_dir) or not os.path.isdir(runs_dir):

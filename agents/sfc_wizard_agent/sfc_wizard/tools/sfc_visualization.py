@@ -36,7 +36,7 @@ def visualize_file_target_data(
 
     # Build the path to the configuration directory
     base_dir = os.getcwd()
-    run_dir = os.path.join(base_dir, "runs", config_name)
+    run_dir = os.path.join(base_dir, ".sfc/runs", config_name)
 
     if not os.path.exists(run_dir):
         return f"❌ Configuration directory {run_dir} not found"

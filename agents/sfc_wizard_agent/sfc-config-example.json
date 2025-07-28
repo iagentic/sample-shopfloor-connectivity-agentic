@@ -5,7 +5,7 @@
   "LogLevel": "Trace",
   "Schedules": [
     {
-      "Name": "Simulator schedule",
+      "Name": "SimulatorSchedule",
       "Interval": 50,
       "Active": true,
       "TimestampLevel": "Both",
@@ -22,7 +22,7 @@
   ],
   "Sources": {
     "SIMULATOR-SOURCE": {
-      "Name": "SinusSource",
+      "Name": "SimulatorSource",
       "ProtocolAdapter": "SIMULATOR",
       "Description": "Sinus simulator source configuration",
       "Channels": {

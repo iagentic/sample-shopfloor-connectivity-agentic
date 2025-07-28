@@ -113,7 +113,7 @@ class SFCLogOperations:
 
         # Try to find the log file path
         base_dir = os.getcwd()
-        runs_dir = os.path.join(base_dir, "runs")
+        runs_dir = os.path.join(base_dir, ".sfc/runs")
         test_dir = os.path.join(runs_dir, current_config_name)
         log_dir = os.path.join(test_dir, "logs")
         log_file_path = os.path.join(log_dir, "sfc.log")
