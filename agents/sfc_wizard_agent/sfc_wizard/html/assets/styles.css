@@ -55,11 +55,49 @@ body {
     opacity: 0.9;
 }
 
+.session-info {
+    margin-left: auto;
+    margin-right: 15px;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+}
+
+#sessionTimer {
+    margin-right: 8px;
+}
+
+#refreshSession {
+    color: white;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    transition: all 0.3s;
+}
+
+#refreshSession:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(30deg);
+}
+
+#refreshSession.refreshing {
+    animation: rotate360 0.8s ease-in-out;
+}
+
+@keyframes rotate360 {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 .clear-btn {
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
+    position: relative;
     background: rgba(255, 255, 255, 0.5);
     border: none;
     border-radius: 50%;

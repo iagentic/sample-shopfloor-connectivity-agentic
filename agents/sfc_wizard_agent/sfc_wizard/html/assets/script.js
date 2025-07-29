@@ -5,10 +5,13 @@ class SFCWizardChat {
         this.sendBtn = document.getElementById('sendBtn');
         this.typingIndicator = document.getElementById('typingIndicator');
         this.messageForm = document.getElementById('messageForm');
+        this.sessionTimerElement = document.getElementById('sessionTimer');
+        this.refreshSessionBtn = document.getElementById('refreshSession');
         this.socket = null;
         this.isReady = false;
         this.sessionId = null;
         this.sessionExpiryMinutes = 60;
+        this.sessionTimerInterval = null;
         // Initialize Showdown markdown converter with standard options
         this.markdownConverter = new showdown.Converter({
             tables: true,
@@ -29,6 +32,7 @@ class SFCWizardChat {
         this.initializeSession();
         this.setupFormHandlers();
         this.setupBeforeUnloadHandler();
+        this.setupSessionRefresh();
         this.showInitializingMessage();
         this.waitForAgentReady();
     }
@@ -58,6 +62,9 @@ class SFCWizardChat {
             timestamp: Date.now()
         };
         localStorage.setItem('sfc_wizard_session', JSON.stringify(sessionData));
+        
+        // Start or restart session timer
+        this.startSessionTimer(sessionData.timestamp);
     }
 
     getStoredSession() {
@@ -76,6 +83,73 @@ class SFCWizardChat {
         const now = Date.now();
         const expiryTime = sessionData.timestamp + (this.sessionExpiryMinutes * 60 * 1000);
         return now > expiryTime;
+    }
+    
+    startSessionTimer(timestamp) {
+        // Clear any existing timer
+        if (this.sessionTimerInterval) {
+            clearInterval(this.sessionTimerInterval);
+        }
+        
+        const updateTimer = () => {
+            const now = Date.now();
+            const expiryTime = timestamp + (this.sessionExpiryMinutes * 60 * 1000);
+            const timeLeft = Math.max(0, expiryTime - now);
+            
+            if (timeLeft <= 0) {
+                // Session expired
+                clearInterval(this.sessionTimerInterval);
+                this.sessionTimerElement.textContent = "Expired";
+                this.sessionTimerElement.style.color = "#ff4d4d";
+                return;
+            }
+            
+            // Calculate minutes and seconds
+            const minutesLeft = Math.floor(timeLeft / 60000);
+            const secondsLeft = Math.floor((timeLeft % 60000) / 1000);
+            
+            // Format the timer
+            this.sessionTimerElement.textContent = 
+                `${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
+            
+            // Change color when getting close to expiry
+            if (minutesLeft < 5) {
+                this.sessionTimerElement.style.color = minutesLeft < 2 ? "#ff4d4d" : "#ffcc00";
+            } else {
+                this.sessionTimerElement.style.color = "";
+            }
+        };
+        
+        // Update immediately then set interval
+        updateTimer();
+        this.sessionTimerInterval = setInterval(updateTimer, 1000);
+    }
+    
+    setupSessionRefresh() {
+        if (this.refreshSessionBtn) {
+            this.refreshSessionBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.refreshSession();
+            });
+        }
+    }
+    
+    refreshSession() {
+        const sessionData = this.getStoredSession();
+        if (sessionData) {
+            // Update the timestamp to now
+            sessionData.timestamp = Date.now();
+            localStorage.setItem('sfc_wizard_session', JSON.stringify(sessionData));
+            
+            // Restart the timer
+            this.startSessionTimer(sessionData.timestamp);
+            
+            // Add a small animation to the refresh button
+            this.refreshSessionBtn.classList.add('refreshing');
+            setTimeout(() => {
+                this.refreshSessionBtn.classList.remove('refreshing');
+            }, 1000);
+        }
     }
 
     setupBeforeUnloadHandler() {
@@ -170,6 +244,12 @@ class SFCWizardChat {
     setupSocketListeners() {
         this.socket.on('connect', () => {
             console.log('Connected to server');
+            
+            // When reconnecting, refresh session data
+            const sessionData = this.getStoredSession();
+            if (sessionData && !this.isSessionExpired(sessionData)) {
+                this.startSessionTimer(sessionData.timestamp);
+            }
         });
 
         this.socket.on('conversation_history', (data) => {
@@ -479,8 +559,29 @@ function clearConversation() {
         return;
     }
     
-    if (confirm('Are you sure you want to clear the conversation?')) {
-        window.chat.socket.emit('clear_conversation');
+    if (confirm('Are you sure you want to clear the conversation? This will reset your session.')) {
+        // Generate a new session ID
+        const newSessionId = window.chat.generateSessionId();
+        
+        // First, disconnect the socket to ensure clean separation from old session
+        if (window.chat.socket) {
+            console.log('Disconnecting socket before session reset...');
+            
+            // Send clear conversation request - without changing session ID yet
+            window.chat.socket.emit('clear_conversation');
+            
+            // Wait a moment to ensure the clear message is processed
+            setTimeout(() => {
+                // Now update the session ID locally
+                window.chat.sessionId = newSessionId;
+                window.chat.storeSession(newSessionId);
+                
+                // Reload the page to ensure a completely fresh session
+                window.location.reload();
+            }, 300);
+        }
+        
+        console.log('Session reset initiated with ID:', newSessionId);
     }
 }
 

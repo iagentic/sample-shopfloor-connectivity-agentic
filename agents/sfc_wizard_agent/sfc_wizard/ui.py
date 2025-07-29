@@ -212,6 +212,9 @@ class ChatUI:
                 session["session_id"] = session_id
                 self.logger.info(f"Generated new session: {session_id}")
 
+            # Record session timestamp
+            self.session_timestamps[session_id] = datetime.now()
+
             # Initialize conversation for session if it doesn't exist
             if session_id not in self.conversations:
                 self.conversations[session_id] = []
@@ -404,16 +407,34 @@ class ChatUI:
             thread.start()
 
         @self.socketio.on("clear_conversation")
-        def handle_clear_conversation():
+        def handle_clear_conversation(data=None):
             """Handle request to clear conversation."""
-            # Ensure we have a valid session_id
-            session_id = session.get("session_id")
-            if not session_id:
-                session_id = str(uuid.uuid4())
-                session["session_id"] = session_id
+            # Get the session ID - check if a new one was provided in data
+            if data and data.get("sessionId"):
+                # Use the new session ID provided by the client
+                new_session_id = data.get("sessionId")
+                session["session_id"] = new_session_id
+                session_id = new_session_id
+                self.logger.info(f"Session reset with new ID: {session_id}")
+            else:
+                # Use existing session ID
+                session_id = session.get("session_id")
+                if not session_id:
+                    session_id = str(uuid.uuid4())
+                    session["session_id"] = session_id
 
-            # Initialize or clear conversation
+            # Initialize conversation for the session ID
             self.conversations[session_id] = []
+            
+            # Clear agent's conversation context/memory by reinitializing it
+            if self.sfc_agent is not None:
+                try:
+                    # Reinitialize the agent to clear its conversation context
+                    self.sfc_agent = SFCWizardAgent()
+                    self.logger.info(f"Agent context cleared for session: {session_id}")
+                except Exception as e:
+                    self.logger.error(f"Error clearing agent context: {str(e)}")
+            
             # Send new welcome message
             welcome_message = self._get_welcome_message()
             formatted_welcome = welcome_message
@@ -425,6 +446,9 @@ class ChatUI:
                 }
             )
             emit("conversation_cleared", {"messages": self.conversations[session_id]})
+            
+            # Update session timestamp in server-side records
+            self.session_timestamps[session_id] = datetime.now()
 
     def _get_welcome_message(self) -> str:
         """Get the welcome message for new conversations."""
