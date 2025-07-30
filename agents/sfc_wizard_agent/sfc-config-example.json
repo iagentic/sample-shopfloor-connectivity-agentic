@@ -10,7 +10,7 @@
       "Active": true,
       "TimestampLevel": "Both",
       "Sources": {
-        "SIMULATOR-SOURCE": [
+        "SimulatorSource": [
           "*"
         ]
       },
@@ -21,7 +21,7 @@
     }
   ],
   "Sources": {
-    "SIMULATOR-SOURCE": {
+    "SimulatorSource": {
       "Name": "SimulatorSource",
       "ProtocolAdapter": "SIMULATOR",
       "Description": "Sinus simulator source configuration",

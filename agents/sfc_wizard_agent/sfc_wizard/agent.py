@@ -382,83 +382,94 @@ class SFCWizardAgent:
             raise KeyboardInterrupt()
 
     async def _stream_response_async(self, user_input: str):
-        """Stream agent response asynchronously with interrupt capability"""
+        """Stream agent response using Strands SDK proper streaming methods"""
         try:
             self.streaming_interrupted = False
-            full_response_text = ""    # The complete response text as it builds
-            chars_already_printed = 0  # How many characters we've already printed
             
             print(f"\n{color.CYAN}🤖 SFC Agent is thinking...{color.END}")
             print(f"{color.YELLOW}💡 Press Ctrl+C to interrupt the response at any time{color.END}\n")
             
-            # Use the Strands agent's streaming capability
-            async for chunk in self.agent.stream_async(user_input):
-                if self.streaming_interrupted:
-                    print(f"\n{color.RED}❌ Response interrupted by user{color.END}")
-                    break
+            # Try to use Strands SDK's built-in streaming response formatting
+            try:
+                # Check if there's a proper streaming response method
+                if hasattr(self.agent, 'stream'):
+                    # Use the stream method if available
+                    response_stream = self.agent.stream(user_input)
+                    full_response = ""
                     
-                # Extract text content from chunk
-                chunk_text = ""
+                    if hasattr(response_stream, '__aiter__'):
+                        # Async iterator
+                        async for response_part in response_stream:
+                            if self.streaming_interrupted:
+                                break
+                            # Print the formatted response part directly
+                            print(str(response_part), end='', flush=True)
+                            full_response += str(response_part)
+                            await asyncio.sleep(0.001)
+                    elif hasattr(response_stream, '__iter__'):
+                        # Sync iterator - make it async
+                        for response_part in response_stream:
+                            if self.streaming_interrupted:
+                                break
+                            print(str(response_part), end='', flush=True)
+                            full_response += str(response_part)
+                            await asyncio.sleep(0.001)
+                    else:
+                        # Single response
+                        full_response = str(response_stream)
+                        print(full_response, end='', flush=True)
+                        
+                else:
+                    # Fallback to stream_async but try to get the formatted response
+                    response_chunks = []
+                    async for chunk in self.agent.stream_async(user_input):
+                        if self.streaming_interrupted:
+                            break
+                        response_chunks.append(chunk)
+                    
+                    # Try to extract the complete formatted response from the chunks
+                    # Look for the final response in the last chunks
+                    full_response = ""
+                    for chunk in reversed(response_chunks[-5:]):  # Check last 5 chunks
+                        if isinstance(chunk, str) and len(chunk) > len(full_response):
+                            full_response = chunk
+                            break
+                        elif hasattr(chunk, 'content') and hasattr(chunk.content, 'text'):
+                            text = chunk.content.text
+                            if len(text) > len(full_response):
+                                full_response = text
+                                break
+                        elif isinstance(chunk, dict) and 'response' in chunk:
+                            text = str(chunk['response'])
+                            if len(text) > len(full_response):
+                                full_response = text
+                                break
+                    
+                    # Print the complete response
+                    print(full_response, end='', flush=True)
                 
-                # Handle dictionary chunks
-                if isinstance(chunk, dict):
-                    # Event-based incremental chunks (contentBlockDelta)
-                    if 'event' in chunk and isinstance(chunk['event'], dict):
-                        event = chunk['event']
-                        if 'contentBlockDelta' in event and isinstance(event['contentBlockDelta'], dict):
-                            delta = event['contentBlockDelta'].get('delta', {})
-                            if isinstance(delta, dict) and 'text' in delta:
-                                # This is incremental text - add to our response
-                                chunk_text = delta['text']
-                                full_response_text += chunk_text
+                if not self.streaming_interrupted and full_response:
+                    print(f"\n{color.GREEN}✅ Response complete{color.END}\n")
+                    self.prompt_logger.add_entry(user_input, full_response)
                     
-                    # Cumulative data chunks 
-                    elif 'data' in chunk:
-                        # This contains the full response so far - use as complete text
-                        chunk_text = str(chunk['data'])
-                        full_response_text = chunk_text  # Replace with complete text
-                    
-                    # Delta chunks (incremental)
-                    elif 'delta' in chunk and isinstance(chunk['delta'], dict):
-                        if 'text' in chunk['delta']:
-                            chunk_text = chunk['delta']['text']
-                            full_response_text += chunk_text
-                
-                # Handle object-like chunks
-                elif hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
-                    chunk_text = chunk.delta.text
-                    full_response_text += chunk_text
-                elif hasattr(chunk, 'content'):
-                    chunk_text = str(chunk.content)
-                    full_response_text += chunk_text
-                elif hasattr(chunk, 'text'):
-                    chunk_text = str(chunk.text)
-                    full_response_text += chunk_text
-                
-                # Now print only the NEW part we haven't printed yet
-                if len(full_response_text) > chars_already_printed:
-                    new_text = full_response_text[chars_already_printed:]
-                    if new_text:  # Print any new text
-                        print(new_text, end='', flush=True)
-                        chars_already_printed = len(full_response_text)
-                    
-                # Small delay to make streaming visible and allow interrupts
-                await asyncio.sleep(0.01)
-            
-            if not self.streaming_interrupted:
-                print(f"\n{color.GREEN}✅ Response complete{color.END}\n")
-                # Record the conversation in the prompt logger
-                self.prompt_logger.add_entry(user_input, full_response_text)
+            except Exception as streaming_error:
+                print(f"\n{color.YELLOW}⚠️  Streaming method failed, using regular response{color.END}")
+                # Complete fallback to regular agent call
+                response = self.agent(user_input)
+                response_text = str(response)
+                print(f"\n{response_text}")
+                self.prompt_logger.add_entry(user_input, response_text)
             
         except asyncio.CancelledError:
             print(f"\n{color.YELLOW}⚡ Stream cancelled{color.END}\n")
         except Exception as e:
             print(f"\n{color.RED}❌ Error during streaming: {str(e)}{color.END}")
             print("Falling back to regular response mode...")
-            # Fallback to regular non-streaming response
             try:
                 response = self.agent(user_input)
-                self.prompt_logger.add_entry(user_input, response)
+                response_text = str(response)
+                print(f"\n{response_text}")
+                self.prompt_logger.add_entry(user_input, response_text)
             except Exception as fallback_error:
                 print(f"❌ Fallback error: {str(fallback_error)}")
 
@@ -548,14 +559,12 @@ class SFCWizardAgent:
         print("• 🔍 Debug existing SFC configurations")
         print("• 🛠️  Create new SFC configurations")
         print("• 💾 Save configurations to JSON files")
-        print("• 📄 Save results to text, markdown, or velocity template files")
         print("• 📂 Load configurations from JSON files")
         print("• ▶️  Run configurations in local test environments")
         print("• 🧪 Test configurations against environments")
         print("• 🏗️  Define required deployment environments")
         print("• 📚 Explain SFC concepts and components")
         print("• 📊 Visualize data from configurations with FILE-TARGET")
-        print("• 📝 Save conversation exchanges as markdown files")
         print("• 🚀 Type 'example' to run a sample configuration instantly")
         print()
         print("📋 Supported Protocols:")
@@ -599,7 +608,7 @@ class SFCWizardAgent:
             while True:
                 try:
                     user_input = input(
-                        color.BOLD + color.BLUE + "SFC Wizard: " + color.END
+                        color.BOLD + color.BLUE + "\n\nSFC Wizard: " + color.END
                     ).strip()
 
                     if user_input.lower() in ["exit", "quit", "bye"]:

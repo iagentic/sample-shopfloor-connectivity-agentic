@@ -424,7 +424,7 @@ class DataVisualizer:
 
         Args:
             data_dir: Directory containing the JSON data files
-            jmespath_expr: JMESPath expression to extract the value to plot
+            jmespath_expr: JMESPath expression to extract the value to plot (default, for example: "sources.SinusSource.values.sinus.value")
             timeframe_seconds: Optional timeframe in seconds to display (e.g., 15, 30)
                               If None, displays all available data
             ui_mode: If True, returns a markdown representation instead of using ncurses

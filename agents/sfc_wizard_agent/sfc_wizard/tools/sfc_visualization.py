@@ -24,7 +24,7 @@ def visualize_file_target_data(
     Args:
         config_name: Name of the currently running configuration (None if no active config)
         minutes: Number of minutes of data to visualize (default: None)
-        jmespath_expr: JMESPath expression to extract values (default: "value")
+        jmespath_expr: JMESPath expression to extract values (default: "sources.SimulatorSource.values.sinus.value")
         ui_mode: If True, returns a markdown representation instead of using ncurses
         seconds: Seconds parameter for time control (default: 15, overrides minutes when provided)
 
