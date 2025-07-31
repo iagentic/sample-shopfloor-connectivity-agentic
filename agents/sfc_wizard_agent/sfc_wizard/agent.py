@@ -13,6 +13,8 @@ import threading
 import queue
 import inspect
 import html
+import asyncio
+import signal
 from dotenv import load_dotenv
 
 # Import the externalized functions
@@ -101,6 +103,13 @@ class SFCWizardAgent:
 
         # Detect the running mode (UI or CLI)
         self.is_ui_mode = self._detect_ui_mode()
+
+        # Initialize streaming interrupt control for both CLI and UI mode
+        self.streaming_interrupted = False
+        self.streaming_task = None
+        
+        # UI mode interrupt state - will be set by UI when interruption is requested
+        self.ui_interrupt_session = None  # Store the session ID that requested interrupt
 
         # Initialize the Strands agent with SFC-specific tools
         self.agent = self._create_agent()
@@ -257,6 +266,8 @@ class SFCWizardAgent:
         @tool
         def run_example(input_text: str) -> str:
             """Run the example SFC configuration when receiving 'example' as input.
+            Example demo channel is: e.g. "sources.SimulatorSource.values.sinus.value" - simulationType sinus
+            that is accesible for visualization from the file-target - approx. 20 sec after start, next to other channels.  
 
             Args:
                 input_text: The text input from the user
@@ -363,6 +374,176 @@ class SFCWizardAgent:
 
         return result
 
+    def _signal_handler(self, signum, frame):
+        """Handle SIGINT (Ctrl+C) during streaming response"""
+        if not self.is_ui_mode and self.streaming_task:
+            print(f"\n\n{color.YELLOW}⚡ Interrupting agent response...{color.END}")
+            self.streaming_interrupted = True
+            if self.streaming_task and not self.streaming_task.done():
+                self.streaming_task.cancel()
+            print(f"{color.GREEN}✅ Response interrupted. Ready for next query.{color.END}\n")
+        else:
+            # Default interrupt behavior for non-streaming mode
+            raise KeyboardInterrupt()
+
+    async def _stream_response_async(self, user_input: str):
+        """Stream agent response using Strands SDK proper streaming methods"""
+        try:
+            self.streaming_interrupted = False
+            
+            print(f"\n{color.CYAN}🤖 SFC Agent is thinking...{color.END}")
+            print(f"{color.YELLOW}💡 Press Ctrl+C to interrupt the response at any time{color.END}\n")
+            
+            # Try to use Strands SDK's built-in streaming response formatting
+            try:
+                # Check if there's a proper streaming response method
+                if hasattr(self.agent, 'stream'):
+                    # Use the stream method if available
+                    response_stream = self.agent.stream(user_input)
+                    full_response = ""
+                    
+                    if hasattr(response_stream, '__aiter__'):
+                        # Async iterator
+                        async for response_part in response_stream:
+                            if self.streaming_interrupted:
+                                break
+                            # Print the formatted response part directly
+                            print(str(response_part), end='', flush=True)
+                            full_response += str(response_part)
+                            await asyncio.sleep(0.001)
+                    elif hasattr(response_stream, '__iter__'):
+                        # Sync iterator - make it async
+                        for response_part in response_stream:
+                            if self.streaming_interrupted:
+                                break
+                            print(str(response_part), end='', flush=True)
+                            full_response += str(response_part)
+                            await asyncio.sleep(0.001)
+                    else:
+                        # Single response
+                        full_response = str(response_stream)
+                        print(full_response, end='', flush=True)
+                        
+                else:
+                    # Fallback to stream_async but try to get the formatted response
+                    response_chunks = []
+                    async for chunk in self.agent.stream_async(user_input):
+                        if self.streaming_interrupted:
+                            break
+                        response_chunks.append(chunk)
+                    
+                    # Try to extract the complete formatted response from the chunks
+                    # Look for the final response in the last chunks
+                    full_response = ""
+                    for chunk in reversed(response_chunks[-5:]):  # Check last 5 chunks
+                        if isinstance(chunk, str) and len(chunk) > len(full_response):
+                            full_response = chunk
+                            break
+                        elif hasattr(chunk, 'content') and hasattr(chunk.content, 'text'):
+                            text = chunk.content.text
+                            if len(text) > len(full_response):
+                                full_response = text
+                                break
+                        elif isinstance(chunk, dict) and 'response' in chunk:
+                            text = str(chunk['response'])
+                            if len(text) > len(full_response):
+                                full_response = text
+                                break
+                    
+                    # Print the complete response
+                    print(full_response, end='', flush=True)
+                
+                if not self.streaming_interrupted and full_response:
+                    print(f"\n{color.GREEN}✅ Response complete{color.END}\n")
+                    self.prompt_logger.add_entry(user_input, full_response)
+                    
+            except Exception as streaming_error:
+                print(f"\n{color.YELLOW}⚠️  Streaming method failed, using regular response{color.END}")
+                # Complete fallback to regular agent call
+                response = self.agent(user_input)
+                response_text = str(response)
+                print(f"\n{response_text}")
+                self.prompt_logger.add_entry(user_input, response_text)
+            
+        except asyncio.CancelledError:
+            print(f"\n{color.YELLOW}⚡ Stream cancelled{color.END}\n")
+        except Exception as e:
+            print(f"\n{color.RED}❌ Error during streaming: {str(e)}{color.END}")
+            print("Falling back to regular response mode...")
+            try:
+                response = self.agent(user_input)
+                response_text = str(response)
+                print(f"\n{response_text}")
+                self.prompt_logger.add_entry(user_input, response_text)
+            except Exception as fallback_error:
+                print(f"❌ Fallback error: {str(fallback_error)}")
+
+    def _process_with_streaming_cli(self, user_input: str):
+        """Process user input with streaming response in CLI mode"""
+        if self.is_ui_mode:
+            # UI mode - use regular processing
+            response = self.agent(user_input)
+            self.prompt_logger.add_entry(user_input, response)
+            return
+            
+        # CLI mode - use streaming with interrupt capability
+        loop = None
+        try:
+            # Create new event loop to avoid deprecation warning
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            # Set up signal handler for Ctrl+C
+            original_sigint_handler = signal.signal(signal.SIGINT, self._signal_handler)
+            
+            # Create streaming task
+            self.streaming_task = loop.create_task(self._stream_response_async(user_input))
+            
+            # Run the streaming task
+            loop.run_until_complete(self.streaming_task)
+            
+        except KeyboardInterrupt:
+            # Handle interrupt during setup/cleanup
+            if self.streaming_task and not self.streaming_task.done():
+                self.streaming_task.cancel()
+                try:
+                    # Wait for the task to be cancelled
+                    loop.run_until_complete(self.streaming_task)
+                except asyncio.CancelledError:
+                    pass
+            print(f"\n{color.YELLOW}⚡ Response interrupted{color.END}\n")
+        except Exception as e:
+            print(f"\n{color.RED}❌ Error in streaming mode: {str(e)}{color.END}")
+            print("Falling back to regular response mode...")
+            try:
+                response = self.agent(user_input)
+                self.prompt_logger.add_entry(user_input, response)
+            except Exception as fallback_error:
+                print(f"❌ Fallback error: {str(fallback_error)}")
+        finally:
+            # Clean up any remaining tasks before closing loop
+            if loop and not loop.is_closed():
+                # Cancel any pending tasks
+                pending_tasks = [task for task in asyncio.all_tasks(loop) if not task.done()]
+                if pending_tasks:
+                    for task in pending_tasks:
+                        task.cancel()
+                    # Wait for all tasks to complete cancellation
+                    try:
+                        loop.run_until_complete(asyncio.gather(*pending_tasks, return_exceptions=True))
+                    except:
+                        pass
+                
+                # Close the loop
+                loop.close()
+            
+            # Restore original signal handler
+            try:
+                signal.signal(signal.SIGINT, original_sigint_handler)
+            except:
+                pass
+            self.streaming_task = None
+
     def boot(self):
         """Boot sequence for SFC Wizard"""
         print("=" * 43)
@@ -375,18 +556,20 @@ class SFCWizardAgent:
         print("=" * 43)
         print("Specialized assistant for industrial data connectivity to AWS")
         print()
+        if not self.is_ui_mode:
+            print(f"{color.YELLOW}⚡ NEW: Streaming responses with Ctrl+C interrupt capability!{color.END}")
+            print(f"   Press Ctrl+C during any response to interrupt and continue with next query")
+            print()
         print("🎯 I can help you with:")
         print("• 🔍 Debug existing SFC configurations")
         print("• 🛠️  Create new SFC configurations")
         print("• 💾 Save configurations to JSON files")
-        print("• 📄 Save results to text, markdown, or velocity template files")
         print("• 📂 Load configurations from JSON files")
         print("• ▶️  Run configurations in local test environments")
         print("• 🧪 Test configurations against environments")
         print("• 🏗️  Define required deployment environments")
         print("• 📚 Explain SFC concepts and components")
         print("• 📊 Visualize data from configurations with FILE-TARGET")
-        print("• 📝 Save conversation exchanges as markdown files")
         print("• 🚀 Type 'example' to run a sample configuration instantly")
         print()
         print("📋 Supported Protocols:")
@@ -430,7 +613,7 @@ class SFCWizardAgent:
             while True:
                 try:
                     user_input = input(
-                        color.BOLD + color.BLUE + "SFC Wizard: " + color.END
+                        color.BOLD + color.BLUE + "\n\nSFC Wizard: " + color.END
                     ).strip()
 
                     if user_input.lower() in ["exit", "quit", "bye"]:
@@ -441,14 +624,9 @@ class SFCWizardAgent:
                     if not user_input:
                         continue
 
-                    # Process with Strands agent
+                    # Process with Strands agent - use streaming in CLI mode
                     try:
-                        response = self.agent(user_input)
-                        # Record the conversation in the prompt logger
-                        self.prompt_logger.add_entry(user_input, response)
-                        print(f"\n")
-                        # Don't print response here as stdio_mcp_client already prints it
-                        # print(f"\n{response}\n")
+                        self._process_with_streaming_cli(user_input)
                     except Exception as e:
                         print(f"\n❌ Error processing request: {str(e)}")
                         print(

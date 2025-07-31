@@ -538,6 +538,42 @@ body {
     border-color: rgba(79, 70, 229, 0.3);
 }
 
+/* Stop button styles */
+.stop-button-container {
+    display: none;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+.stop-button-container.show {
+    display: flex;
+}
+
+.stop-button {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.stop-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.stop-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .chat-container {

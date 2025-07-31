@@ -7,6 +7,8 @@ class SFCWizardChat {
         this.messageForm = document.getElementById('messageForm');
         this.sessionTimerElement = document.getElementById('sessionTimer');
         this.refreshSessionBtn = document.getElementById('refreshSession');
+        this.stopButtonContainer = document.getElementById('stopButtonContainer');
+        this.stopButton = document.getElementById('stopButton');
         this.socket = null;
         this.isReady = false;
         this.sessionId = null;
@@ -33,6 +35,7 @@ class SFCWizardChat {
         this.setupFormHandlers();
         this.setupBeforeUnloadHandler();
         this.setupSessionRefresh();
+        this.setupStopButton();
         this.showInitializingMessage();
         this.waitForAgentReady();
     }
@@ -315,6 +318,27 @@ class SFCWizardChat {
             }
         });
     }
+    
+    setupStopButton() {
+        if (!this.stopButton || !this.stopButtonContainer) return;
+        
+        this.stopButton.addEventListener('click', () => {
+            if (!this.isStreaming || !this.socket) return;
+            
+            // Send interrupt signal to server
+            this.socket.emit('interrupt_response');
+            
+            // Visual feedback that stop was requested
+            this.stopButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+            this.stopButton.disabled = true;
+            
+            // Re-enable after a short delay
+            setTimeout(() => {
+                this.stopButton.innerHTML = '<i class="fas fa-hand"></i> Stop Response';
+                this.stopButton.disabled = false;
+            }, 2000);
+        });
+    }
 
     sendMessage() {
         if (!this.isReady || !this.socket) {
@@ -481,6 +505,13 @@ class SFCWizardChat {
         this.isStreaming = true;
         this.streamingAccumulatedText = '';
         
+        // Show stop button
+        if (this.stopButtonContainer) {
+            this.stopButtonContainer.classList.add('show');
+            this.stopButton.disabled = false;
+            this.stopButton.innerHTML = '<i class="fas fa-hand"></i> Stop Response';
+        }
+        
         // Create a temporary streaming message div
         this.streamingMessageDiv = document.createElement('div');
         this.streamingMessageDiv.className = 'message assistant streaming';
@@ -532,6 +563,13 @@ class SFCWizardChat {
         if (!this.isStreaming) return;
         
         this.isStreaming = false;
+        
+        // Hide stop button
+        if (this.stopButtonContainer) {
+            this.stopButtonContainer.classList.remove('show');
+            this.stopButton.disabled = false;
+            this.stopButton.innerHTML = '<i class="fas fa-hand"></i> Stop Response';
+        }
         
         // Remove streaming cursor and styling
         if (this.streamingContentDiv) {
