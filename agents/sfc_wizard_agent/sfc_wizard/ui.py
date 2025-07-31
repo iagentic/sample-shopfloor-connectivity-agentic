@@ -6,6 +6,7 @@ Implements the agent loop as a web-based chat conversation.
 import logging
 import os
 import secrets
+import signal
 import uuid
 from datetime import datetime
 from typing import Dict, List
@@ -117,6 +118,70 @@ class ChatUI:
             self.sfc_agent = SFCWizardAgent()
             self.agent_ready = True
             print("✅ SFC Wizard Agent initialized with MCP tools")
+
+    def _cleanup_async_tasks(self):
+        """Clean up any pending asyncio tasks to prevent the 'Task was destroyed but it is pending' error."""
+        try:
+            # First, cancel all our tracked streaming tasks
+            for session_id, task in list(self.session_streaming_tasks.items()):
+                if not task.done():
+                    task.cancel()
+                    try:
+                        # Give the task a moment to cancel gracefully
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(asyncio.wait_for(task, timeout=1.0))
+                        loop.close()
+                    except (asyncio.CancelledError, asyncio.TimeoutError):
+                        # Task was cancelled or timed out, which is expected
+                        pass
+                    except Exception as e:
+                        # Log any unexpected errors but continue cleanup
+                        self.logger.warning(f"Error cancelling task for session {session_id}: {e}")
+            
+            # Clear the task registry
+            self.session_streaming_tasks.clear()
+            self.session_interrupt_flags.clear()
+            
+            # Also clean up any other pending asyncio tasks that might be running
+            try:
+                # Try to get the current event loop if it exists
+                try:
+                    current_loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    current_loop = None
+                
+                if current_loop:
+                    # Cancel all pending tasks in the current loop
+                    pending_tasks = [task for task in asyncio.all_tasks(current_loop) if not task.done()]
+                    if pending_tasks:
+                        print(f"🧹 Cancelling {len(pending_tasks)} pending asyncio tasks")
+                        for task in pending_tasks:
+                            task.cancel()
+                        
+                        # Wait for all tasks to complete cancellation
+                        try:
+                            current_loop.run_until_complete(asyncio.gather(*pending_tasks, return_exceptions=True))
+                        except Exception as e:
+                            # If we can't wait for them, at least we cancelled them
+                            self.logger.warning(f"Could not wait for task cancellation: {e}")
+                
+            except Exception as e:
+                self.logger.warning(f"Could not clean up all asyncio tasks: {e}")
+            
+            print("✅ Cleaned up asyncio tasks")
+            
+        except Exception as e:
+            self.logger.error(f"Error during async task cleanup: {e}")
+
+    def _signal_handler(self, signum, frame):
+        """Handle SIGINT (Ctrl+C) signal for clean shutdown."""
+        print("\n🛑 Received interrupt signal, shutting down gracefully...")
+        self._cleanup_async_tasks()
+        if self.sfc_agent:
+            self.sfc_agent._cleanup_processes()
+        # Exit gracefully
+        os._exit(0)
 
     def _get_or_generate_secret_key(self) -> str:
         """Get secret key from environment variable or generate a new one."""
@@ -647,6 +712,10 @@ What would you like to do today?"""
         print("🔄 Real-time chat with the SFC Wizard Agent")
         print("=" * 60)
 
+        # Set up signal handler for graceful shutdown
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
         try:
             self.socketio.run(
                 self.app,
@@ -660,8 +729,9 @@ What would you like to do today?"""
         except Exception as e:
             print(f"❌ Error starting chat UI: {str(e)}")
         finally:
-            # Cleanup SFC processes
-            print("🧹 Cleaning up SFC processes...")
+            # Cleanup SFC processes and asyncio tasks
+            print("🧹 Cleaning up SFC processes and async tasks...")
+            self._cleanup_async_tasks()
             if self.sfc_agent:
                 self.sfc_agent._cleanup_processes()
 
