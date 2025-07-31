@@ -104,9 +104,12 @@ class SFCWizardAgent:
         # Detect the running mode (UI or CLI)
         self.is_ui_mode = self._detect_ui_mode()
 
-        # Initialize streaming interrupt control for CLI mode
+        # Initialize streaming interrupt control for both CLI and UI mode
         self.streaming_interrupted = False
         self.streaming_task = None
+        
+        # UI mode interrupt state - will be set by UI when interruption is requested
+        self.ui_interrupt_session = None  # Store the session ID that requested interrupt
 
         # Initialize the Strands agent with SFC-specific tools
         self.agent = self._create_agent()
@@ -263,6 +266,8 @@ class SFCWizardAgent:
         @tool
         def run_example(input_text: str) -> str:
             """Run the example SFC configuration when receiving 'example' as input.
+            Example demo channel is: e.g. "sources.SimulatorSource.values.sinus.value" - simulationType sinus
+            that is accesible for visualization from the file-target - approx. 20 sec after start, next to other channels.  
 
             Args:
                 input_text: The text input from the user
