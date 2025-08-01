@@ -1,145 +1,74 @@
-# Shopfloor Connectivity Agentic
+Shop Floor Connectivity - Agentic
+================================
 
-A specialized AI agent built using the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) for the [Shopfloor Connectivity](https://github.com/aws-samples/shopfloor-connectivity) (SFC) Framework.
+AI-powered assistant for [AWS provided Shop Floor Connectivity (SFC)](https://github.com/aws-samples/shopfloor-connectivity) configuration management and testing. Using python [Strands Agents SDK](https://strandsagents.com/latest/documentation/docs/api-reference/agent/) & [FastMCP](https://gofastmcp.com/getting-started/welcome)
 
-## Overview
+`The Agent in it's own words`:
 
-This project provides AI-powered tools for Shopfloor Connectivity (SFC), helping developers and engineers work with industrial data connectivity configurations. The project consists of two main components:
+>_I help you create, validate, and run Shop Floor Connectivity (SFC) configurations for industrial data collection. I can generate templates, access documentation, visualize data, and monitor systems—making it easier to connect factory equipment to cloud services._
 
-## Components
 
-### 🏭 [SFC Wizard Agent](agents/sfc_wizard_agent/README.md)
+| UI Interface | CLI Interface |
+|--------------|---------------|
+| ![UI Interface](agents/sfc_wizard_agent/sfc_wizard/img/ui.png) | ![CLI Interface](agents/sfc_wizard_agent/sfc_wizard/img/cli.png) |
 
-An intelligent conversational agent specialized for SFC configuration management, debugging, and testing. The agent provides:
+| CLI Data viz | CLI Data viz |
+|--------------|--------------|
+| ![CLI Visualization 1](agents/sfc_wizard_agent/sfc_wizard/img/cli-viz1.png) | ![CLI Visualization 2](agents/sfc_wizard_agent/sfc_wizard/img/cli-viz2.png) |
 
-- **Configuration Management**: Validate, create, and optimize SFC configurations
-- **Local Testing**: Run configurations in isolated test environments with monitoring
-- **Troubleshooting**: Diagnose issues and provide optimization recommendations  
-- **Knowledge Base**: Comprehensive support for industrial protocols and AWS targets
 
-**Quick Start:**
-```bash
-cd agents/sfc_wizard_agent
-./scripts/run.sh
-```
+## Quick Start
 
-### 📚 [SFC Spec Server](mcp-servers/sfc-spec-server/README.md) 
-
-A Model Context Protocol (MCP) server that provides SFC specifications, documentation, and sfc_wizard.tools. Features include:
-
-- **Specification Access**: Complete SFC configuration schemas and examples
-- **Documentation Tools**: Search and retrieve SFC documentation  
-- **Integration Support**: MCP protocol for AI agent integration
-
-**Quick Start:**
-```bash
-cd mcp-servers/sfc-spec-server  
-./scripts/run.sh
-```
-
----
-
-## Installation
-
-### Prerequisites
-
-This project uses [uv](https://astral.sh/uv) for fast Python package management. Install uv first:
-
+**Install UV package manager:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### Setup Options
-
-#### Option 1: Run Directly from GitHub (Recommended)
-
-You can run the components directly from GitHub without cloning:
-
-**SFC Wizard Agent:**
+**Run SFC Wizard Agent (CLI):**
 ```bash
 uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=agents/sfc_wizard_agent agent
 ```
 
-**SFC Wizard Agent - UI:**
+**Run SFC Wizard Agent (UI):**
 ```bash
-uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=agents/sfc_wizard_agent sfc-wizard-ui 
+uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=agents/sfc_wizard_agent sfc-wizard-ui
 ```
 
-**SFC Spec MCP Server:**
-```bash
-uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agentic.git#subdirectory=mcp-servers/sfc-spec-server sfc_spec
+
+## Architecture
+
+```sh
+
+AGENTIC LOOP FLOW (Strands Agent)
+================================
+
+1. User Input ──────────▶ SFCWizardAgent
+                             │
+2. Intent Analysis ──────────▼
+   (via Bedrock LLM)     Tool Selection & Reasoning
+                             │
+3. Tool Execution ───────────▼
+                         ┌─────────┬─────────┐
+                         │ Internal│   MCP   │
+                         │  Tools  │ Server  │
+                         └─────────┴─────────┘
+                             │
+4. Response Generation ──────▼
+   (via Bedrock LLM)     Formatted Response
+                             │
+5. User Output ──────────────▼
+   (CLI/UI Interface)    Human-Readable Result
 ```
 
-#### Option 2: Local Development
+## Platform Support
 
-1. Clone this repository
-2. Navigate to the desired component directory
-3. Run the initialization script:
-   ```bash
-   ./scripts/init.sh
-   ```
-4. Run the component:
-   ```bash
-   ./scripts/run.sh
-   ```
-
-### Environment Configuration
-
-Each component can be configured with environment variables. See the individual component READMEs for specific configuration options:
-
-- [SFC Wizard Agent Configuration](agents/sfc_wizard_agent/README.md#configuration)
-- [SFC Spec Server Configuration](mcp-servers/sfc-spec-server/README.md#configuration)
-
-## Use Cases
-
-- **Manufacturing Integration**: Connect PLCs and SCADA systems to AWS
-- **IoT Data Pipeline**: Stream sensor data to AWS services  
-- **Industrial Analytics**: Process manufacturing data in the cloud
-- **Predictive Maintenance**: Collect equipment data for ML models
-- **Digital Twin**: Real-time data synchronization
-- **Configuration Management**: AI-assisted SFC configuration development
-- **Troubleshooting**: Intelligent diagnosis of SFC deployment issues
-
-## Development
-
-### Project Structure
-
-```
-
-├── agents/
-│   └── sfc_wizard_agent/          # Main AI agent for SFC management
-│       ├── README.md              # Agent-specific documentation
-│       ├── pyproject.toml         # Agent dependencies
-│       └── scripts/               # Agent utility scripts
-└── mcp/
-    └── sfc-spec-server/           # MCP server for SFC specifications  
-        ├── README.md              # Server-specific documentation
-        ├── pyproject.toml         # Server dependencies
-        └── scripts/               # Server utility scripts
-```
-
-### Contributing
-
-See individual component READMEs for development guidelines:
-- [SFC Wizard Agent Development](agents/sfc_wizard_agent/README.md#development)
-- [SFC Spec Server Development](mcp-servers/sfc-spec-server/README.md#development)
-
-### Troubleshooting
-
-For component-specific troubleshooting, refer to:
-- [SFC Wizard Agent Troubleshooting](agents/sfc_wizard_agent/README.md#troubleshooting)
-- [SFC Spec Server Troubleshooting](mcp-servers/sfc-spec-server/README.md#troubleshooting)
-
-## Security
-
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
-
-## License
-
-This library is licensed under the MIT-0 License. See the LICENSE file.
+Currently tested on **macOS** and **Linux**. Windows support not yet verified.
 
 ## Links
 
-- [Shopfloor Connectivity](https://github.com/aws-samples/shopfloor-connectivity)
+- [Shopfloor Connectivity Framework](https://github.com/aws-samples/shopfloor-connectivity)
 - [Strands Agents SDK](https://github.com/strands-agents/sdk-python)
-- [AWS Industrial IoT](https://aws.amazon.com/industrial/)
+
+## License
+
+MIT-0 License. See [LICENSE](LICENSE) file.
