@@ -14,11 +14,6 @@ AI-powered assistant for [AWS provided Shop Floor Connectivity (SFC)](https://gi
 |--------------|---------------|
 | ![UI Interface](agents/sfc_wizard_agent/sfc_wizard/img/ui.png) | ![CLI Interface](agents/sfc_wizard_agent/sfc_wizard/img/cli.png) |
 
-| CLI Data viz | CLI Data viz |
-|--------------|--------------|
-| ![CLI Visualization 1](agents/sfc_wizard_agent/sfc_wizard/img/cli-viz1.png) | ![CLI Visualization 2](agents/sfc_wizard_agent/sfc_wizard/img/cli-viz2.png) |
-
-
 ## Quick Start
 
 **Install UV package manager:**
