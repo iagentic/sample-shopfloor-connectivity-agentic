@@ -60,7 +60,11 @@ include = ["sfc_wizard*"]
 exclude = ["tests*", "scripts*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.json", "html/*.html", "html/assets/*.js", "html/assets/*.css", "html/assets/*.map", "html/assets/*.ico", "html/assets/*.png"]
+"sfc_wizard" = ["*.json", "html/*.html", "html/assets/*.js", "html/assets/*.css", "html/assets/*.map", "html/assets/*.ico", "html/assets/*.png"]
+"." = ["sfc-config-example.json"]
+
+[tool.setuptools.data-files]
+"." = ["sfc-config-example.json"]
 
 [tool.black]
 line-length = 88
