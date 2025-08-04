@@ -10,9 +10,9 @@ AI-powered assistant for [AWS provided Shop Floor Connectivity (SFC)](https://gi
 >**A:** _I help you create, validate, and run Shop Floor Connectivity (SFC) configurations for industrial data collection. I can generate templates, access documentation, visualize data, and monitor systems—making it easier to connect factory equipment to cloud services._
 
 
-| UI Interface | CLI Interface |
-|--------------|---------------|
-| ![UI Interface](agents/sfc_wizard_agent/sfc_wizard/img/ui.png) | ![CLI Interface](agents/sfc_wizard_agent/sfc_wizard/img/cli.png) |
+| UI  | CLI |
+|-----|-----|
+| ![User Interface](agents/sfc_wizard_agent/sfc_wizard/img/ui.png) | ![CommandLine Interface](agents/sfc_wizard_agent/sfc_wizard/img/cli.png) |
 
 ## Quick Start
 
