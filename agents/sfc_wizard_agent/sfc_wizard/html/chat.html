@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SFC Agentic Wizard</title>
-    <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script src="assets/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -13,7 +13,7 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <img src="assets/images/logo.png" alt="SFC Logo" class="header-logo">
+            <img src="assets/logo.png" alt="SFC Logo" class="header-logo">
             <b>SFC Agentic Wizard</b>
             <div class="session-info">
                 <span id="sessionTimer" title="Time until session expires">--:--</span>
