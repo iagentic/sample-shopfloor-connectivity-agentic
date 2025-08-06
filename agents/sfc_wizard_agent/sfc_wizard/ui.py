@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 import asyncio
+import platform
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -209,26 +210,33 @@ class ChatUI:
         # Check if .env file exists
         if os.path.exists(env_file_path):
             try:
-                with open(env_file_path, "r") as f:
-                    content = f.read()
-
+                # Use cross-platform file handling with pathlib
+                env_path = Path(env_file_path)
+                
+                # Read content safely with universal newlines mode
+                content = env_path.read_text(encoding='utf-8')
+                
                 # Look for existing FLASK_SECRET_KEY in .env file
-                for line in content.split("\n"):
+                for line in content.splitlines():
                     if line.strip().startswith("FLASK_SECRET_KEY="):
                         return line.split("=", 1)[1].strip()
 
                 # If FLASK_SECRET_KEY not found in .env, generate and append it
                 new_secret_key = secrets.token_urlsafe(32)
-                with open(env_file_path, "a") as f:
-                    f.write(
-                        f"\n# Flask Secret Key (auto-generated)\nFLASK_SECRET_KEY={new_secret_key}\n"
-                    )
+                
+                # Append to file with platform-appropriate line endings
+                with open(env_file_path, "a", encoding='utf-8', newline='') as f:
+                    f.write("\n# Flask Secret Key (auto-generated)\n")
+                    f.write(f"FLASK_SECRET_KEY={new_secret_key}\n")
 
                 print(f"✅ Generated new Flask secret key and saved to .env file")
                 return new_secret_key
 
             except Exception as e:
                 print(f"⚠️ Error reading/writing .env file: {e}")
+                # Print more detailed error information for debugging
+                import traceback
+                traceback.print_exc()
 
         # If all else fails, generate a temporary secret key (not persistent)
         print(
@@ -784,9 +792,24 @@ What would you like to do today?"""
         print("🔄 Real-time chat with the SFC Wizard Agent")
         print("=" * 60)
 
-        # Set up signal handler for graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+        # Set up signal handler for graceful shutdown - with Windows compatibility
+        try:
+            # Set up common signals available on all platforms
+            signal.signal(signal.SIGINT, self._signal_handler)
+            
+            # Set up SIGTERM which might not be available on Windows
+            if hasattr(signal, 'SIGTERM'):  # Check if SIGTERM exists
+                signal.signal(signal.SIGTERM, self._signal_handler)
+                
+            # On Windows, also try to handle CTRL_C_EVENT and CTRL_BREAK_EVENT if available
+            if platform.system() == "Windows":
+                if hasattr(signal, 'CTRL_C_EVENT'):
+                    signal.signal(signal.CTRL_C_EVENT, self._signal_handler)
+                if hasattr(signal, 'CTRL_BREAK_EVENT'):
+                    signal.signal(signal.CTRL_BREAK_EVENT, self._signal_handler)
+        except Exception as e:
+            print(f"⚠️ Warning: Could not set up some signal handlers: {e}")
+            print("   Graceful shutdown on keyboard interrupt may not work properly.")
 
         try:
             self.socketio.run(
@@ -811,6 +834,15 @@ What would you like to do today?"""
 def main():
     """Main function to run the SFC Wizard Chat UI."""
     try:
+        # Set appropriate event loop policy for Windows
+        if platform.system() == "Windows":
+            try:
+                # Set the event loop policy to properly handle async on Windows
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                print("✅ Set Windows-compatible event loop policy")
+            except Exception as e:
+                print(f"⚠️ Could not set Windows event loop policy: {e}")
+        
         # Load environment variables from .env file
         env_path = Path(__file__).parent.parent / ".env"
         if env_path.exists():
