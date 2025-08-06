@@ -85,19 +85,19 @@ class SFCRunner:
             base_dir = os.getcwd()
 
             # Create the modules directory at the same level as runs
-            modules_dir = os.path.join(base_dir, ".sfc/modules")
+            modules_dir = os.path.join(base_dir, ".sfc", "modules")
             if not os.path.exists(modules_dir):
                 os.makedirs(modules_dir)
 
             # Create the runs directory
-            runs_dir = os.path.join(base_dir, ".sfc/runs")
+            runs_dir = os.path.join(base_dir, ".sfc", "runs")
             if not os.path.exists(runs_dir):
                 os.makedirs(runs_dir)
 
             # Add a timestamp suffix to the test directory name
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             folder_name = f"{config_name}_{timestamp}"
-            
+
             # Create a test directory with the config name and timestamp inside the runs folder
             test_dir = os.path.join(runs_dir, folder_name)
             if not os.path.exists(test_dir):
@@ -272,18 +272,61 @@ class SFCRunner:
 
             # Find the SFC main executable in the modules directory
             sfc_executable = None
-            sfc_main_dir = os.path.join(modules_dir, "sfc-main")
+            sfc_main_lib_dir = os.path.join(modules_dir, "sfc-main", "lib", "*")
 
-            for root, dirs, files in os.walk(sfc_main_dir):
-                for file in files:
-                    if file == "sfc-main" or file == "sfc-main.exe":
-                        sfc_executable = os.path.join(root, file)
-                        # Make executable on Unix-like systems
-                        if os.name != "nt":  # not Windows
-                            os.chmod(sfc_executable, 0o755)
+            # Determine the Java command to use - try multiple approaches
+            java_cmd = "java"  # Default fallback to system Java
+
+            # First try: Use JAVA_HOME if available
+            java_home = os.environ.get("JAVA_HOME")
+            if java_home:
+                java_home_cmd = os.path.join(java_home, "bin", "java")
+                if os.path.isfile(java_home_cmd) and os.access(java_home_cmd, os.X_OK):
+                    java_cmd = java_home_cmd
+                    print(f"✅ Using Java from JAVA_HOME: {java_cmd}")
+                else:
+                    print(
+                        f"⚠️ Java not found at JAVA_HOME path: {java_home_cmd}, falling back to system Java"
+                    )
+            else:
+                print("⚠️ JAVA_HOME not set, using system Java")
+
+            # Second try: Check if common Java installations exist (MacOS specific paths)
+            common_java_paths = [
+                "/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home/bin/java",
+                "/Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/bin/java",
+                "/Library/Java/JavaVirtualMachines/adoptopenjdk-11.jdk/Contents/Home/bin/java",
+                "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home/bin/java",
+                "/usr/bin/java",
+            ]
+
+            if java_cmd == "java":  # If we're still using the default
+                for path in common_java_paths:
+                    if os.path.isfile(path) and os.access(path, os.X_OK):
+                        java_cmd = path
+                        print(f"✅ Found Java at common location: {java_cmd}")
                         break
-                if sfc_executable:
-                    break
+
+            # Verify that Java is available before proceeding
+            try:
+                version_check = subprocess.run(
+                    [java_cmd, "-version"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                if version_check.returncode == 0:
+                    print(f"✅ Java verified: {version_check.stderr.splitlines()[0]}")
+                else:
+                    print(
+                        f"⚠️ Java version check returned non-zero exit code: {version_check.returncode}"
+                    )
+            except Exception as e:
+                print(f"⚠️ Error checking Java version: {str(e)}")
+
+            sfc_executable = (
+                f'{java_cmd} -cp "{sfc_main_lib_dir}" com.amazonaws.sfc.MainController'
+            )
 
             if not sfc_executable:
                 result = (
@@ -300,12 +343,41 @@ class SFCRunner:
 
             # Run the configuration with SFC
             print(f"▶️ Running SFC with configuration " + config_filename)
-            command = [sfc_executable, "-config", config_filename, "-trace"]
+
+            # We need to expand the wildcard in the classpath ourselves
+            # Find all JAR files in the lib directory
+            lib_dir = os.path.join(modules_dir, "sfc-main", "lib")
+            jar_files = []
+            if os.path.exists(lib_dir):
+                for file in os.listdir(lib_dir):
+                    if file.endswith(".jar"):
+                        jar_files.append(os.path.join(lib_dir, file))
+
+            # Build the classpath string with appropriate separator
+            classpath = os.pathsep.join(jar_files)
+            if not classpath:
+                classpath = os.path.join(
+                    modules_dir, "sfc-main", "lib"
+                )  # Fallback to directory if no JARs found
+
+            # print(f"Using classpath: {classpath}")
+
+            # Construct the command properly as an array
+            command = [
+                java_cmd,  # Java executable
+                "-cp",
+                classpath,  # Classpath with properly expanded JAR files
+                "com.amazonaws.sfc.MainController",  # Main class
+                "-config",
+                config_filename,  # SFC arguments
+                "-trace",
+            ]
 
             # Set up environment variables for the SFC process
             env = os.environ.copy()
             env["SFC_DEPLOYMENT_DIR"] = os.path.abspath(modules_dir)
             env["MODULES_DIR"] = os.path.abspath(modules_dir)
+            # print(os.path.abspath(modules_dir))
 
             # Set up log file with rotation
             log_dir = os.path.join(test_dir, "logs")

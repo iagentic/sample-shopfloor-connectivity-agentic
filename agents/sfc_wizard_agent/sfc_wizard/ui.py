@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 import asyncio
+import platform
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -99,7 +100,7 @@ class ChatUI:
         # SFC Wizard Agent will be initialized later within MCP context
         self.sfc_agent = None
         self.agent_ready = False
-        
+
         # Shared interrupt state for sessions
         self.session_interrupt_flags: Dict[str, bool] = {}
         self.session_streaming_tasks: Dict[str, asyncio.Task] = {}
@@ -137,12 +138,14 @@ class ChatUI:
                         pass
                     except Exception as e:
                         # Log any unexpected errors but continue cleanup
-                        self.logger.warning(f"Error cancelling task for session {session_id}: {e}")
-            
+                        self.logger.warning(
+                            f"Error cancelling task for session {session_id}: {e}"
+                        )
+
             # Clear the task registry
             self.session_streaming_tasks.clear()
             self.session_interrupt_flags.clear()
-            
+
             # Also clean up any other pending asyncio tasks that might be running
             try:
                 # Try to get the current event loop if it exists
@@ -150,27 +153,37 @@ class ChatUI:
                     current_loop = asyncio.get_running_loop()
                 except RuntimeError:
                     current_loop = None
-                
+
                 if current_loop:
                     # Cancel all pending tasks in the current loop
-                    pending_tasks = [task for task in asyncio.all_tasks(current_loop) if not task.done()]
+                    pending_tasks = [
+                        task
+                        for task in asyncio.all_tasks(current_loop)
+                        if not task.done()
+                    ]
                     if pending_tasks:
-                        print(f"🧹 Cancelling {len(pending_tasks)} pending asyncio tasks")
+                        print(
+                            f"🧹 Cancelling {len(pending_tasks)} pending asyncio tasks"
+                        )
                         for task in pending_tasks:
                             task.cancel()
-                        
+
                         # Wait for all tasks to complete cancellation
                         try:
-                            current_loop.run_until_complete(asyncio.gather(*pending_tasks, return_exceptions=True))
+                            current_loop.run_until_complete(
+                                asyncio.gather(*pending_tasks, return_exceptions=True)
+                            )
                         except Exception as e:
                             # If we can't wait for them, at least we cancelled them
-                            self.logger.warning(f"Could not wait for task cancellation: {e}")
-                
+                            self.logger.warning(
+                                f"Could not wait for task cancellation: {e}"
+                            )
+
             except Exception as e:
                 self.logger.warning(f"Could not clean up all asyncio tasks: {e}")
-            
+
             print("✅ Cleaned up asyncio tasks")
-            
+
         except Exception as e:
             self.logger.error(f"Error during async task cleanup: {e}")
 
@@ -197,26 +210,33 @@ class ChatUI:
         # Check if .env file exists
         if os.path.exists(env_file_path):
             try:
-                with open(env_file_path, "r") as f:
-                    content = f.read()
-
+                # Use cross-platform file handling with pathlib
+                env_path = Path(env_file_path)
+                
+                # Read content safely with universal newlines mode
+                content = env_path.read_text(encoding='utf-8')
+                
                 # Look for existing FLASK_SECRET_KEY in .env file
-                for line in content.split("\n"):
+                for line in content.splitlines():
                     if line.strip().startswith("FLASK_SECRET_KEY="):
                         return line.split("=", 1)[1].strip()
 
                 # If FLASK_SECRET_KEY not found in .env, generate and append it
                 new_secret_key = secrets.token_urlsafe(32)
-                with open(env_file_path, "a") as f:
-                    f.write(
-                        f"\n# Flask Secret Key (auto-generated)\nFLASK_SECRET_KEY={new_secret_key}\n"
-                    )
+                
+                # Append to file with platform-appropriate line endings
+                with open(env_file_path, "a", encoding='utf-8', newline='') as f:
+                    f.write("\n# Flask Secret Key (auto-generated)\n")
+                    f.write(f"FLASK_SECRET_KEY={new_secret_key}\n")
 
                 print(f"✅ Generated new Flask secret key and saved to .env file")
                 return new_secret_key
 
             except Exception as e:
                 print(f"⚠️ Error reading/writing .env file: {e}")
+                # Print more detailed error information for debugging
+                import traceback
+                traceback.print_exc()
 
         # If all else fails, generate a temporary secret key (not persistent)
         print(
@@ -331,34 +351,34 @@ class ChatUI:
             """Handle client disconnection."""
             session_id = session.get("session_id")
             self.logger.info(f"Client disconnected: {session_id}")
-            
+
         @self.socketio.on("interrupt_response")
         def handle_interrupt_response():
             """Handle interruption request for streaming response."""
             session_id = session.get("session_id")
             self.logger.info(f"Response interruption requested by client: {session_id}")
-            
+
             # Set the interrupt flag for this session
             if session_id:
                 self.session_interrupt_flags[session_id] = True
-                
+
                 # If there's an active streaming task, cancel it
                 if session_id in self.session_streaming_tasks:
                     task = self.session_streaming_tasks[session_id]
                     if not task.done():
                         task.cancel()
-                
+
                 # Set the interrupt flag on the agent if it exists
                 if self.sfc_agent and hasattr(self.sfc_agent, "streaming_interrupted"):
                     self.sfc_agent.streaming_interrupted = True
-                
+
                 # Emit confirmation that interruption was processed
                 emit("agent_streaming_end", {}, room=request.sid)
-                
+
                 return {"status": "success", "message": "Response interrupted"}
             else:
                 return {"status": "error", "message": "No valid session"}
-            
+
         @self.socketio.on("send_message")
         def handle_message(data):
             """Handle incoming chat message."""
@@ -429,7 +449,7 @@ class ChatUI:
 
                     # Create streaming output capture
                     streaming_capture = StreamingOutputCapture(self.socketio, sid)
-                    
+
                     # Capture stdout and stderr for streaming
                     original_stdout = sys.stdout
                     original_stderr = sys.stderr
@@ -441,121 +461,177 @@ class ChatUI:
 
                         # Initialize interrupt state for this session
                         self.session_interrupt_flags[session_id] = False
-                        
+
                         # Use true streaming instead of blocking call
                         response = None
                         full_response = ""
-                        
+
                         # Use the same streaming approach as CLI
                         try:
                             # Create event loop for async streaming
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)
-                            
+
                             async def stream_response():
                                 nonlocal full_response
                                 try:
                                     # First try using the agent.stream method like CLI does
-                                    if hasattr(self.sfc_agent.agent, 'stream'):
-                                        response_stream = self.sfc_agent.agent.stream(user_message)
-                                        
-                                        if hasattr(response_stream, '__aiter__'):
+                                    if hasattr(self.sfc_agent.agent, "stream"):
+                                        response_stream = self.sfc_agent.agent.stream(
+                                            user_message
+                                        )
+
+                                        if hasattr(response_stream, "__aiter__"):
                                             # Async iterator
                                             async for response_part in response_stream:
-                                                if self.session_interrupt_flags.get(session_id, False):
-                                                    print("\n⚡ Response interrupted by user request.")
+                                                if self.session_interrupt_flags.get(
+                                                    session_id, False
+                                                ):
+                                                    print(
+                                                        "\n⚡ Response interrupted by user request."
+                                                    )
                                                     break
-                                                
+
                                                 # Use the same approach as CLI - convert to string and emit
                                                 chunk_text = str(response_part)
                                                 full_response += chunk_text
-                                                
+
                                                 # Emit chunk directly to client
-                                                self.socketio.emit("agent_streaming", {
-                                                    "content": chunk_text,
-                                                    "timestamp": datetime.now().isoformat(),
-                                                }, room=sid)
-                                                
-                                                await asyncio.sleep(0.001)  # Match CLI timing
-                                        elif hasattr(response_stream, '__iter__'):
+                                                self.socketio.emit(
+                                                    "agent_streaming",
+                                                    {
+                                                        "content": chunk_text,
+                                                        "timestamp": datetime.now().isoformat(),
+                                                    },
+                                                    room=sid,
+                                                )
+
+                                                await asyncio.sleep(
+                                                    0.001
+                                                )  # Match CLI timing
+                                        elif hasattr(response_stream, "__iter__"):
                                             # Sync iterator - make it async like CLI does
                                             for response_part in response_stream:
-                                                if self.session_interrupt_flags.get(session_id, False):
-                                                    print("\n⚡ Response interrupted by user request.")
+                                                if self.session_interrupt_flags.get(
+                                                    session_id, False
+                                                ):
+                                                    print(
+                                                        "\n⚡ Response interrupted by user request."
+                                                    )
                                                     break
-                                                
+
                                                 chunk_text = str(response_part)
                                                 full_response += chunk_text
-                                                
-                                                self.socketio.emit("agent_streaming", {
-                                                    "content": chunk_text,
-                                                    "timestamp": datetime.now().isoformat(),
-                                                }, room=sid)
-                                                
+
+                                                self.socketio.emit(
+                                                    "agent_streaming",
+                                                    {
+                                                        "content": chunk_text,
+                                                        "timestamp": datetime.now().isoformat(),
+                                                    },
+                                                    room=sid,
+                                                )
+
                                                 await asyncio.sleep(0.001)
                                         else:
                                             # Single response
                                             full_response = str(response_stream)
-                                            self.socketio.emit("agent_streaming", {
-                                                "content": full_response,
-                                                "timestamp": datetime.now().isoformat(),
-                                            }, room=sid)
-                                    
-                                    elif hasattr(self.sfc_agent.agent, 'stream_async'):
+                                            self.socketio.emit(
+                                                "agent_streaming",
+                                                {
+                                                    "content": full_response,
+                                                    "timestamp": datetime.now().isoformat(),
+                                                },
+                                                room=sid,
+                                            )
+
+                                    elif hasattr(self.sfc_agent.agent, "stream_async"):
                                         # Fallback to stream_async like CLI does
                                         response_chunks = []
-                                        async for chunk in self.sfc_agent.agent.stream_async(user_message):
-                                            if self.session_interrupt_flags.get(session_id, False):
-                                                print("\n⚡ Response interrupted by user request.")
+                                        async for (
+                                            chunk
+                                        ) in self.sfc_agent.agent.stream_async(
+                                            user_message
+                                        ):
+                                            if self.session_interrupt_flags.get(
+                                                session_id, False
+                                            ):
+                                                print(
+                                                    "\n⚡ Response interrupted by user request."
+                                                )
                                                 break
                                             response_chunks.append(chunk)
-                                        
+
                                         # Extract the complete formatted response from chunks like CLI does
-                                        for chunk in reversed(response_chunks[-5:]):  # Check last 5 chunks
-                                            if isinstance(chunk, str) and len(chunk) > len(full_response):
+                                        for chunk in reversed(
+                                            response_chunks[-5:]
+                                        ):  # Check last 5 chunks
+                                            if isinstance(chunk, str) and len(
+                                                chunk
+                                            ) > len(full_response):
                                                 full_response = chunk
                                                 break
-                                            elif hasattr(chunk, 'content') and hasattr(chunk.content, 'text'):
+                                            elif hasattr(chunk, "content") and hasattr(
+                                                chunk.content, "text"
+                                            ):
                                                 text = chunk.content.text
                                                 if len(text) > len(full_response):
                                                     full_response = text
                                                     break
-                                            elif isinstance(chunk, dict) and 'response' in chunk:
-                                                text = str(chunk['response'])
+                                            elif (
+                                                isinstance(chunk, dict)
+                                                and "response" in chunk
+                                            ):
+                                                text = str(chunk["response"])
                                                 if len(text) > len(full_response):
                                                     full_response = text
                                                     break
-                                        
+
                                         # Emit the complete response
                                         if full_response:
-                                            self.socketio.emit("agent_streaming", {
-                                                "content": full_response,
-                                                "timestamp": datetime.now().isoformat(),
-                                            }, room=sid)
-                                    
+                                            self.socketio.emit(
+                                                "agent_streaming",
+                                                {
+                                                    "content": full_response,
+                                                    "timestamp": datetime.now().isoformat(),
+                                                },
+                                                room=sid,
+                                            )
+
                                     else:
                                         # No streaming available
                                         raise Exception("No streaming method available")
-                                        
+
                                 except asyncio.CancelledError:
                                     print("\n⚡ Streaming cancelled")
                                     raise
                                 except Exception as e:
                                     print(f"Error in streaming: {e}")
                                     raise
-                            
+
                             # Create and store the streaming task
                             streaming_task = loop.create_task(stream_response())
                             self.session_streaming_tasks[session_id] = streaming_task
-                            
+
                             try:
                                 loop.run_until_complete(streaming_task)
-                                response = type('MockResponse', (), {'content': full_response})()
+                                response = type(
+                                    "MockResponse", (), {"content": full_response}
+                                )()
                             except asyncio.CancelledError:
-                                response = type('MockResponse', (), {'content': full_response + "\n[Response interrupted]"})()
+                                response = type(
+                                    "MockResponse",
+                                    (),
+                                    {
+                                        "content": full_response
+                                        + "\n[Response interrupted]"
+                                    },
+                                )()
                             except Exception as streaming_error:
                                 # Fallback to regular agent call like CLI does
-                                print(f"⚠️ Streaming method failed, using regular response: {streaming_error}")
+                                print(
+                                    f"⚠️ Streaming method failed, using regular response: {streaming_error}"
+                                )
                                 response = self.sfc_agent.agent(user_message)
                             finally:
                                 loop.close()
@@ -568,11 +644,15 @@ class ChatUI:
 
                         # Ensure any remaining output is flushed
                         streaming_capture.flush()
-                        
+
                         # For visualization data, force flush any pending output
                         if "visualize" in user_message.lower():
-                            print("Ensuring visualization data is properly displayed...")
-                            self.socketio.sleep(0.5)  # Short delay to ensure output is processed
+                            print(
+                                "Ensuring visualization data is properly displayed..."
+                            )
+                            self.socketio.sleep(
+                                0.5
+                            )  # Short delay to ensure output is processed
 
                     finally:
                         # Always restore original stdout/stderr
@@ -647,7 +727,7 @@ class ChatUI:
 
             # Initialize conversation for the session ID
             self.conversations[session_id] = []
-            
+
             # Clear agent's conversation context/memory by reinitializing it
             if self.sfc_agent is not None:
                 try:
@@ -656,7 +736,7 @@ class ChatUI:
                     self.logger.info(f"Agent context cleared for session: {session_id}")
                 except Exception as e:
                     self.logger.error(f"Error clearing agent context: {str(e)}")
-            
+
             # Send new welcome message
             welcome_message = self._get_welcome_message()
             formatted_welcome = welcome_message
@@ -668,7 +748,7 @@ class ChatUI:
                 }
             )
             emit("conversation_cleared", {"messages": self.conversations[session_id]})
-            
+
             # Update session timestamp in server-side records
             self.session_timestamps[session_id] = datetime.now()
 
@@ -712,9 +792,24 @@ What would you like to do today?"""
         print("🔄 Real-time chat with the SFC Wizard Agent")
         print("=" * 60)
 
-        # Set up signal handler for graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+        # Set up signal handler for graceful shutdown - with Windows compatibility
+        try:
+            # Set up common signals available on all platforms
+            signal.signal(signal.SIGINT, self._signal_handler)
+            
+            # Set up SIGTERM which might not be available on Windows
+            if hasattr(signal, 'SIGTERM'):  # Check if SIGTERM exists
+                signal.signal(signal.SIGTERM, self._signal_handler)
+                
+            # On Windows, also try to handle CTRL_C_EVENT and CTRL_BREAK_EVENT if available
+            if platform.system() == "Windows":
+                if hasattr(signal, 'CTRL_C_EVENT'):
+                    signal.signal(signal.CTRL_C_EVENT, self._signal_handler)
+                if hasattr(signal, 'CTRL_BREAK_EVENT'):
+                    signal.signal(signal.CTRL_BREAK_EVENT, self._signal_handler)
+        except Exception as e:
+            print(f"⚠️ Warning: Could not set up some signal handlers: {e}")
+            print("   Graceful shutdown on keyboard interrupt may not work properly.")
 
         try:
             self.socketio.run(
@@ -739,6 +834,15 @@ What would you like to do today?"""
 def main():
     """Main function to run the SFC Wizard Chat UI."""
     try:
+        # Set appropriate event loop policy for Windows
+        if platform.system() == "Windows":
+            try:
+                # Set the event loop policy to properly handle async on Windows
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                print("✅ Set Windows-compatible event loop policy")
+            except Exception as e:
+                print(f"⚠️ Could not set Windows event loop policy: {e}")
+        
         # Load environment variables from .env file
         env_path = Path(__file__).parent.parent / ".env"
         if env_path.exists():

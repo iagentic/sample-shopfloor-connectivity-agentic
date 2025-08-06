@@ -107,9 +107,11 @@ class SFCWizardAgent:
         # Initialize streaming interrupt control for both CLI and UI mode
         self.streaming_interrupted = False
         self.streaming_task = None
-        
+
         # UI mode interrupt state - will be set by UI when interruption is requested
-        self.ui_interrupt_session = None  # Store the session ID that requested interrupt
+        self.ui_interrupt_session = (
+            None  # Store the session ID that requested interrupt
+        )
 
         # Initialize the Strands agent with SFC-specific tools
         self.agent = self._create_agent()
@@ -153,20 +155,22 @@ class SFCWizardAgent:
                 filename: Name of the file to save the configuration to
             """
             return SFCFileOperations.save_config_to_file(config_json, filename)
-            
+
         @tool
         def save_results_to_file(content: str, filename: str) -> str:
             """Save content to a file with specified extension (txt, vm, md).
-            
+
             Args:
                 content: Content to save to the file
                 filename: Name of the file to save the content to (defaults to .txt extension if none provided)
-            
+
             Notes:
                 When an SFC configuration is running, this will save the file both to the
                 central storage directory (.sfc/stored_results) and to the current run directory.
             """
-            return SFCFileOperations.save_results_to_file(content, filename, self.current_config_name)
+            return SFCFileOperations.save_results_to_file(
+                content, filename, self.current_config_name
+            )
 
         @tool
         def run_sfc_config_locally(config_json: str, config_name: str = "") -> str:
@@ -192,13 +196,13 @@ class SFCWizardAgent:
             Note: When follow=True, the function will enter a real-time viewing mode.
                   The only way to exit this mode is by pressing Ctrl+C in the terminal.
                   After exiting, you'll be returned to the command prompt.
-                  
+
                   This feature is only available in CLI mode and will be disabled in UI mode.
             """
             # Disable follow mode in UI mode since it requires terminal interaction
             if self.is_ui_mode and follow:
                 return "❌ Log follow mode is not available in the web interface. Please use the standard log viewing without the follow option."
-                
+
             return SFCLogOperations.tail_logs(
                 self.current_config_name, lines, follow, self.log_buffer
             )
@@ -229,7 +233,9 @@ class SFCWizardAgent:
             )
 
         @tool
-        def visualize_data(minutes: int = 10, jmespath_expr: str = "value", seconds: int = None) -> str:
+        def visualize_data(
+            minutes: int = 10, jmespath_expr: str = "value", seconds: int = None
+        ) -> str:
             """Visualize data from the currently running SFC configuration with FILE-TARGET enabled.
 
             Shows the data using a visualizer (ncurses in CLI mode or markdown in UI mode).
@@ -242,13 +248,13 @@ class SFCWizardAgent:
             """
             # Debug print for UI mode detection
             print(f"🔍 Visualization UI mode detected: {self.is_ui_mode}")
-            
+
             # Log timeframe info
             if seconds is not None:
                 print(f"📊 Visualizing data from the last {seconds} seconds")
             else:
                 print(f"📊 Visualizing data from the last {minutes} minutes")
-            
+
             result = visualize_file_target_data(
                 config_name=self.current_config_name,
                 minutes=minutes,
@@ -256,18 +262,18 @@ class SFCWizardAgent:
                 ui_mode=self.is_ui_mode,
                 seconds=seconds,
             )
-            
+
             # Force the visualization to print directly in UI mode
             if self.is_ui_mode:
                 print(f"\n{result}\n")
-                
+
             return result
 
         @tool
         def run_example(input_text: str) -> str:
             """Run the example SFC configuration when receiving 'example' as input.
             Example demo channel is: e.g. "sources.SimulatorSource.values.sinus.value" - simulationType sinus
-            that is accesible for visualization from the file-target - approx. 20 sec after start, next to other channels.  
+            that is accesible for visualization from the file-target - approx. 20 sec after start, next to other channels.
 
             Args:
                 input_text: The text input from the user
@@ -308,21 +314,23 @@ class SFCWizardAgent:
                     return f"❌ {message}"
             except Exception as e:
                 return f"❌ Error saving conversations: {str(e)}"
-        
+
         @tool
         def read_context_from_file(file_path: str) -> str:
             """Read content from various file types to use as context.
-            
+
             Supports PDF, Excel (xls/xlsx), Markdown, CSV, Word (doc/docx), RTF, and TXT files.
             File size is limited to 500KB for performance reasons.
-            
+
             Args:
                 file_path: Path to the file (relative to where the agent was started)
-                
+
             Returns:
                 String containing the file content or error message
             """
-            success, message, content = SFCFileOperations.read_context_from_file(file_path)
+            success, message, content = SFCFileOperations.read_context_from_file(
+                file_path
+            )
             if success and content:
                 # Success case with content
                 return f"{message}\n\n```\n{content}\n```"
@@ -336,7 +344,8 @@ class SFCWizardAgent:
             model_id = os.getenv(
                 "BEDROCK_MODEL_ID", "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
             )
-            bedrock_model = BedrockModel(model_id=model_id)
+            model_region = os.getenv("BEDROCK_REGION", "us-west-2")
+            bedrock_model = BedrockModel(model_id=model_id, region_name=model_region)
             agent_internal_tools = [
                 read_config_from_file,
                 save_config_to_file,
@@ -403,7 +412,9 @@ class SFCWizardAgent:
             self.streaming_interrupted = True
             if self.streaming_task and not self.streaming_task.done():
                 self.streaming_task.cancel()
-            print(f"{color.GREEN}✅ Response interrupted. Ready for next query.{color.END}\n")
+            print(
+                f"{color.GREEN}✅ Response interrupted. Ready for next query.{color.END}\n"
+            )
         else:
             # Default interrupt behavior for non-streaming mode
             raise KeyboardInterrupt()
@@ -412,40 +423,42 @@ class SFCWizardAgent:
         """Stream agent response using Strands SDK proper streaming methods"""
         try:
             self.streaming_interrupted = False
-            
+
             print(f"\n{color.CYAN}🤖 SFC Agent is thinking...{color.END}")
-            print(f"{color.YELLOW}💡 Press Ctrl+C to interrupt the response at any time{color.END}\n")
-            
+            print(
+                f"{color.YELLOW}💡 Press Ctrl+C to interrupt the response at any time{color.END}\n"
+            )
+
             # Try to use Strands SDK's built-in streaming response formatting
             try:
                 # Check if there's a proper streaming response method
-                if hasattr(self.agent, 'stream'):
+                if hasattr(self.agent, "stream"):
                     # Use the stream method if available
                     response_stream = self.agent.stream(user_input)
                     full_response = ""
-                    
-                    if hasattr(response_stream, '__aiter__'):
+
+                    if hasattr(response_stream, "__aiter__"):
                         # Async iterator
                         async for response_part in response_stream:
                             if self.streaming_interrupted:
                                 break
                             # Print the formatted response part directly
-                            print(str(response_part), end='', flush=True)
+                            print(str(response_part), end="", flush=True)
                             full_response += str(response_part)
                             await asyncio.sleep(0.001)
-                    elif hasattr(response_stream, '__iter__'):
+                    elif hasattr(response_stream, "__iter__"):
                         # Sync iterator - make it async
                         for response_part in response_stream:
                             if self.streaming_interrupted:
                                 break
-                            print(str(response_part), end='', flush=True)
+                            print(str(response_part), end="", flush=True)
                             full_response += str(response_part)
                             await asyncio.sleep(0.001)
                     else:
                         # Single response
                         full_response = str(response_stream)
-                        print(full_response, end='', flush=True)
-                        
+                        print(full_response, end="", flush=True)
+
                 else:
                     # Fallback to stream_async but try to get the formatted response
                     response_chunks = []
@@ -453,7 +466,7 @@ class SFCWizardAgent:
                         if self.streaming_interrupted:
                             break
                         response_chunks.append(chunk)
-                    
+
                     # Try to extract the complete formatted response from the chunks
                     # Look for the final response in the last chunks
                     full_response = ""
@@ -461,32 +474,36 @@ class SFCWizardAgent:
                         if isinstance(chunk, str) and len(chunk) > len(full_response):
                             full_response = chunk
                             break
-                        elif hasattr(chunk, 'content') and hasattr(chunk.content, 'text'):
+                        elif hasattr(chunk, "content") and hasattr(
+                            chunk.content, "text"
+                        ):
                             text = chunk.content.text
                             if len(text) > len(full_response):
                                 full_response = text
                                 break
-                        elif isinstance(chunk, dict) and 'response' in chunk:
-                            text = str(chunk['response'])
+                        elif isinstance(chunk, dict) and "response" in chunk:
+                            text = str(chunk["response"])
                             if len(text) > len(full_response):
                                 full_response = text
                                 break
-                    
+
                     # Print the complete response
-                    print(full_response, end='', flush=True)
-                
+                    print(full_response, end="", flush=True)
+
                 if not self.streaming_interrupted and full_response:
                     print(f"\n{color.GREEN}✅ Response complete{color.END}\n")
                     self.prompt_logger.add_entry(user_input, full_response)
-                    
+
             except Exception as streaming_error:
-                print(f"\n{color.YELLOW}⚠️  Streaming method failed, using regular response{color.END}")
+                print(
+                    f"\n{color.YELLOW}⚠️  Streaming method failed, using regular response{color.END}"
+                )
                 # Complete fallback to regular agent call
                 response = self.agent(user_input)
                 response_text = str(response)
                 print(f"\n{response_text}")
                 self.prompt_logger.add_entry(user_input, response_text)
-            
+
         except asyncio.CancelledError:
             print(f"\n{color.YELLOW}⚡ Stream cancelled{color.END}\n")
         except Exception as e:
@@ -507,23 +524,25 @@ class SFCWizardAgent:
             response = self.agent(user_input)
             self.prompt_logger.add_entry(user_input, response)
             return
-            
+
         # CLI mode - use streaming with interrupt capability
         loop = None
         try:
             # Create new event loop to avoid deprecation warning
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            
+
             # Set up signal handler for Ctrl+C
             original_sigint_handler = signal.signal(signal.SIGINT, self._signal_handler)
-            
+
             # Create streaming task
-            self.streaming_task = loop.create_task(self._stream_response_async(user_input))
-            
+            self.streaming_task = loop.create_task(
+                self._stream_response_async(user_input)
+            )
+
             # Run the streaming task
             loop.run_until_complete(self.streaming_task)
-            
+
         except KeyboardInterrupt:
             # Handle interrupt during setup/cleanup
             if self.streaming_task and not self.streaming_task.done():
@@ -546,19 +565,23 @@ class SFCWizardAgent:
             # Clean up any remaining tasks before closing loop
             if loop and not loop.is_closed():
                 # Cancel any pending tasks
-                pending_tasks = [task for task in asyncio.all_tasks(loop) if not task.done()]
+                pending_tasks = [
+                    task for task in asyncio.all_tasks(loop) if not task.done()
+                ]
                 if pending_tasks:
                     for task in pending_tasks:
                         task.cancel()
                     # Wait for all tasks to complete cancellation
                     try:
-                        loop.run_until_complete(asyncio.gather(*pending_tasks, return_exceptions=True))
+                        loop.run_until_complete(
+                            asyncio.gather(*pending_tasks, return_exceptions=True)
+                        )
                     except:
                         pass
-                
+
                 # Close the loop
                 loop.close()
-            
+
             # Restore original signal handler
             try:
                 signal.signal(signal.SIGINT, original_sigint_handler)
@@ -579,8 +602,12 @@ class SFCWizardAgent:
         print("Specialized assistant for industrial data connectivity to AWS")
         print()
         if not self.is_ui_mode:
-            print(f"{color.YELLOW}⚡ NEW: Streaming responses with Ctrl+C interrupt capability!{color.END}")
-            print(f"   Press Ctrl+C during any response to interrupt and continue with next query")
+            print(
+                f"{color.YELLOW}⚡ NEW: Streaming responses with Ctrl+C interrupt capability!{color.END}"
+            )
+            print(
+                f"   Press Ctrl+C during any response to interrupt and continue with next query"
+            )
             print()
         print("🎯 I can help you with:")
         print("• 🔍 Debug existing SFC configurations")
