@@ -308,6 +308,27 @@ class SFCWizardAgent:
                     return f"❌ {message}"
             except Exception as e:
                 return f"❌ Error saving conversations: {str(e)}"
+        
+        @tool
+        def read_context_from_file(file_path: str) -> str:
+            """Read content from various file types to use as context.
+            
+            Supports PDF, Excel (xls/xlsx), Markdown, CSV, Word (doc/docx), RTF, and TXT files.
+            File size is limited to 500KB for performance reasons.
+            
+            Args:
+                file_path: Path to the file (relative to where the agent was started)
+                
+            Returns:
+                String containing the file content or error message
+            """
+            success, message, content = SFCFileOperations.read_context_from_file(file_path)
+            if success and content:
+                # Success case with content
+                return f"{message}\n\n```\n{content}\n```"
+            else:
+                # Error case or no content
+                return message
 
         # Create agent with SFC-specific tools
         try:
@@ -327,6 +348,7 @@ class SFCWizardAgent:
                 visualize_data,
                 run_example,
                 save_conversation,
+                read_context_from_file,
             ]
 
             mcp_tools = stdio_mcp_client.list_tools_sync()

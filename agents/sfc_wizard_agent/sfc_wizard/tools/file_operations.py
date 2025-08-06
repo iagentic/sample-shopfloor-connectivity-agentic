@@ -8,7 +8,11 @@ Handles reading and writing configuration files.
 
 import os
 import json
-from typing import Dict, Any, List
+import io
+import csv
+import tempfile
+from typing import Dict, Any, List, Tuple, Optional
+from pathlib import Path
 
 
 class SFCFileOperations:
@@ -140,3 +144,164 @@ class SFCFileOperations:
                 return f"✅ Results saved successfully to '{full_path}'"
         except Exception as e:
             return f"❌ Error saving results: {str(e)}"
+            
+    @staticmethod
+    def read_context_from_file(file_path: str) -> Tuple[bool, str, Optional[str]]:
+        """Read content from various file types to use as context
+        
+        Supports: PDF, Excel (xls, xlsx), Markdown (md), CSV, Word (doc, docx), 
+                 Rich Text Format (rtf), and Text (txt) files.
+        
+        Args:
+            file_path: Path to the file (relative to where the agent was started)
+            
+        Returns:
+            Tuple containing:
+            - Success flag (bool)
+            - Message (str) - Success or error message
+            - Content (Optional[str]) - File content or None if error occurred
+        """
+        try:
+            # Check if file exists
+            if not os.path.exists(file_path):
+                return False, f"❌ File not found: '{file_path}'", None
+                
+            # Check file size (max 500KB)
+            file_size = os.path.getsize(file_path) / 1024  # Convert to KB
+            if file_size > 500:
+                return False, f"❌ File size ({file_size:.1f} KB) exceeds the maximum limit of 500 KB", None
+                
+            # Get file extension
+            file_ext = os.path.splitext(file_path)[1].lower()
+            
+            # List of supported file extensions
+            supported_extensions = ['.pdf', '.xls', '.xlsx', '.md', '.csv', '.doc', '.docx', '.rtf', '.txt']
+            
+            if file_ext not in supported_extensions:
+                return False, f"❌ Unsupported file type: '{file_ext}'. Supported types: pdf, xls, xlsx, md, csv, doc, docx, rtf, txt", None
+            
+            content = None
+            
+            # Process different file types
+            if file_ext == '.pdf':
+                content = SFCFileOperations._extract_pdf_content(file_path)
+            elif file_ext in ['.xls', '.xlsx']:
+                content = SFCFileOperations._extract_excel_content(file_path)
+            elif file_ext == '.csv':
+                content = SFCFileOperations._extract_csv_content(file_path)
+            elif file_ext in ['.doc', '.docx']:
+                content = SFCFileOperations._extract_word_content(file_path)
+            elif file_ext == '.rtf':
+                content = SFCFileOperations._extract_rtf_content(file_path)
+            elif file_ext == '.md' or file_ext == '.txt':
+                # Plain text files can be read directly
+                with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
+                    content = file.read()
+            
+            if content:
+                return True, f"✅ Successfully read content from '{file_path}' ({file_size:.1f} KB)", content
+            else:
+                return False, f"❌ Failed to extract content from '{file_path}'", None
+                
+        except Exception as e:
+            return False, f"❌ Error reading file: {str(e)}", None
+    
+    @staticmethod
+    def _extract_pdf_content(file_path: str) -> str:
+        """Extract text content from a PDF file"""
+        try:
+            # Try importing PyPDF2, if not available use a simpler method
+            try:
+                import PyPDF2
+                
+                text = ""
+                with open(file_path, 'rb') as file:
+                    reader = PyPDF2.PdfReader(file)
+                    for page_num in range(len(reader.pages)):
+                        text += reader.pages[page_num].extract_text() + "\n\n"
+                return text
+            except ImportError:
+                return f"[PDF CONTENT] Import PyPDF2 to properly extract content from '{file_path}'"
+        except Exception as e:
+            return f"[PDF EXTRACTION ERROR] {str(e)}"
+    
+    @staticmethod
+    def _extract_excel_content(file_path: str) -> str:
+        """Extract data from Excel files"""
+        try:
+            # Try importing pandas and openpyxl, if not available use a simpler method
+            try:
+                import pandas as pd
+                
+                # Read Excel file into pandas DataFrames (one per sheet)
+                excel_data = pd.read_excel(file_path, sheet_name=None)
+                
+                result = []
+                for sheet_name, df in excel_data.items():
+                    # Add sheet name as header
+                    result.append(f"--- Sheet: {sheet_name} ---")
+                    
+                    # Convert DataFrame to string representation
+                    result.append(df.to_string(index=False))
+                    result.append("\n")
+                
+                return "\n".join(result)
+            except ImportError:
+                return f"[EXCEL CONTENT] Import pandas and openpyxl to properly extract content from '{file_path}'"
+        except Exception as e:
+            return f"[EXCEL EXTRACTION ERROR] {str(e)}"
+    
+    @staticmethod
+    def _extract_csv_content(file_path: str) -> str:
+        """Extract data from CSV files"""
+        try:
+            result = []
+            with open(file_path, 'r', newline='', encoding='utf-8', errors='replace') as csvfile:
+                csv_reader = csv.reader(csvfile)
+                for row in csv_reader:
+                    result.append(", ".join(row))
+            return "\n".join(result)
+        except Exception as e:
+            return f"[CSV EXTRACTION ERROR] {str(e)}"
+    
+    @staticmethod
+    def _extract_word_content(file_path: str) -> str:
+        """Extract text from Word documents"""
+        try:
+            # Try importing python-docx, if not available use a simpler method
+            try:
+                import docx
+                
+                doc = docx.Document(file_path)
+                full_text = []
+                for para in doc.paragraphs:
+                    full_text.append(para.text)
+                return '\n'.join(full_text)
+            except ImportError:
+                return f"[WORD CONTENT] Import python-docx to properly extract content from '{file_path}'"
+        except Exception as e:
+            return f"[WORD EXTRACTION ERROR] {str(e)}"
+    
+    @staticmethod
+    def _extract_rtf_content(file_path: str) -> str:
+        """Extract text from RTF files"""
+        try:
+            # Try importing striprtf, if not available use a simpler method
+            try:
+                from striprtf.striprtf import rtf_to_text
+                
+                with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
+                    rtf_text = file.read()
+                    plain_text = rtf_to_text(rtf_text)
+                    return plain_text
+            except ImportError:
+                # Basic RTF stripping (not perfect but better than nothing)
+                with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
+                    rtf_text = file.read()
+                    # Very simple RTF cleaning (removes control sequences)
+                    import re
+                    cleaned_text = re.sub(r'[\\][a-z0-9]+\s?', ' ', rtf_text)
+                    cleaned_text = re.sub(r'[{}]', '', cleaned_text)
+                    return cleaned_text
+        except Exception as e:
+            return f"[RTF EXTRACTION ERROR] {str(e)}"

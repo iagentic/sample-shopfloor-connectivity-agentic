@@ -25,6 +25,11 @@ dependencies = [
     "flask>=2.3.0",
     "flask-socketio>=5.3.0",
     "matplotlib>=3.10.3",
+    "PyPDF2>=3.0.0",
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "python-docx>=0.8.11",
+    "striprtf>=0.0.22",
 ]
 keywords = ["ai", "agent", "strands", "aws", "sfc", "shopfloor"]
 classifiers = [
