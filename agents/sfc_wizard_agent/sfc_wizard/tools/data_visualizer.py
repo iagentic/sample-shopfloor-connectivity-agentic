@@ -4,12 +4,30 @@ Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. SPDX-License-
 
 Data Visualizer for AWS Shopfloor Connectivity (SFC)
 Provides ncurses-based visualization for time-series data from SFC.
+Cross-platform support for Windows, macOS, and Linux.
 """
 
 import os
 import json
 import glob
-import curses
+import sys
+import platform
+
+# Handle cross-platform curses implementation
+try:
+    import curses
+except ImportError:
+    if platform.system() == "Windows":
+        print("Warning: Standard curses not available on Windows")
+        try:
+            import windows_curses as curses
+            print("Successfully loaded windows-curses")
+        except ImportError:
+            print("windows-curses package not found. Install with: pip install windows-curses")
+            curses = None
+    else:
+        # Re-raise on non-Windows platforms since curses should be available
+        raise
 import time
 import datetime
 import jmespath
@@ -432,6 +450,10 @@ class DataVisualizer:
         Returns:
             Result message or markdown graph
         """
+        # Auto-select UI mode on Windows if curses is not available
+        if not ui_mode and (curses is None or platform.system() == "Windows" and not hasattr(curses, 'wrapper')):
+            ui_mode = True
+            print("Note: Using UI mode instead of terminal visualization on Windows")
         # Store data_dir and jmespath_expr for timeframe selection
         self.data_dir = data_dir
         self.jmespath_expr = jmespath_expr

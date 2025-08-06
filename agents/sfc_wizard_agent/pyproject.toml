@@ -51,6 +51,9 @@ dev = [
     "pytest-cov>=6.1.2",
     "black>=25.1.0",
 ]
+windows = [
+    "windows-curses>=2.3.1",  # Windows compatibility for curses
+]
 
 [project.scripts]
 agent = "sfc_wizard.agent:main"

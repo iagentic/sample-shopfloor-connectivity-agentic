@@ -336,7 +336,13 @@ class SFCWizardAgent:
             model_id = os.getenv(
                 "BEDROCK_MODEL_ID", "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
             )
-            bedrock_model = BedrockModel(model_id=model_id)
+            model_region = os.getenv(
+                "BEDROCK_REGION", "us-west-2"
+            )
+            bedrock_model = BedrockModel(
+                model_id=model_id,
+                region_name=model_region
+            )
             agent_internal_tools = [
                 read_config_from_file,
                 save_config_to_file,

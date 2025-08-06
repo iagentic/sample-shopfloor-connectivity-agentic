@@ -23,8 +23,14 @@ The SFC Wizard Agent is a conversational AI assistant that helps you:
 
 If you haven't installed UV yet, install it using:
 
+**Linux/macOS:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Windows:**
+```cmd
+pip install uv
 ```
 
 Or follow the [UV installation guide](https://docs.astral.sh/uv/getting-started/installation/).
@@ -47,19 +53,45 @@ uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agen
    ```
 
 2. **Initialize dependencies:**
+   
+   **Linux/macOS:**
    ```bash
    ./scripts/init.sh
    ```
+   
+   **Windows:**
+   ```cmd
+   scripts\init.bat
+   ```
 
 3. **Run the agent:**
+   
+   **Linux/macOS:**
+   ```bash
+   ./scripts/run.sh
+   ```
+   
+   **Windows:**
+   ```cmd
+   scripts\run.bat
+   ```
+
+   Or run with Python directly:
    ```bash
    uv run python -m sfc_wizard.agent
    ```
 
-   Or use the convenience script:
-   ```bash
-   ./scripts/run.sh
+### Windows-Specific Setup
+
+For Windows users, we provide additional compatibility options:
+
+1. **Install Windows-specific dependencies:**
+   ```cmd
+   pip install -e .[windows]
    ```
+   This installs the windows-curses package to enable terminal visualization.
+
+2. **Web UI Mode:** On Windows, the data visualizer will automatically use the web UI mode for visualization if the terminal mode is not available.
 
 ## Supported Protocols & Targets
 
@@ -156,8 +188,12 @@ agents/sfc_wizard_agent/
 ├── pyproject.toml              # Project configuration and dependencies
 ├── uv.lock                     # Locked dependency versions
 ├── scripts/                    # Utility scripts
-│   ├── init.sh                # Initialize dependencies
-│   ├── run.sh                 # Run the agent
+│   ├── init.sh                # Initialize dependencies (Linux/macOS)
+│   ├── init.bat               # Initialize dependencies (Windows)
+│   ├── run.sh                 # Run the agent (Linux/macOS)
+│   ├── run.bat                # Run the agent (Windows)
+│   ├── run-ui.sh              # Run the web UI (Linux/macOS)
+│   ├── run-ui.bat             # Run the web UI (Windows)
 │   ├── test.sh                # Run tests
 │   └── lint.sh                # Code linting
 ├── sfc_wizard/                 # Main agent package
@@ -180,12 +216,14 @@ agents/sfc_wizard_agent/
 
 ### Running Tests
 
+**Linux/macOS:**
 ```bash
 ./scripts/test.sh
 ```
 
 ### Code Formatting
 
+**Linux/macOS:**
 ```bash
 ./scripts/lint.sh
 ```
@@ -194,8 +232,14 @@ agents/sfc_wizard_agent/
 
 Edit `pyproject.toml` and run:
 
+**Linux/macOS:**
 ```bash
 ./scripts/init.sh
+```
+
+**Windows:**
+```cmd
+scripts\init.bat
 ```
 
 ## Troubleshooting
@@ -203,9 +247,12 @@ Edit `pyproject.toml` and run:
 ### Common Issues
 
 1. **UV not found**: Install UV using the installation command above
-2. **Dependencies missing**: Run `./scripts/init.sh` to install dependencies
+2. **Dependencies missing**: Run `./scripts/init.sh` (Linux/macOS) or `scripts\init.bat` (Windows) to install dependencies
 3. **AWS credentials**: Ensure AWS credentials are configured for deployment features
 4. **MCP server errors**: Check that the SFC Spec Server is properly configured
+5. **Windows-specific issues**: 
+   - If terminal visualization doesn't work, ensure the `windows-curses` package is installed or use the web UI mode
+   - Path issues on Windows: Use backslashes (`\`) for file paths in Windows commands
 
 ### Getting Help
 
@@ -214,6 +261,15 @@ The agent includes built-in help and explanations. You can ask:
 - "What is SFC?" - Learn about Shop Floor Connectivity
 - "Explain OPC-UA configuration" - Get protocol-specific guidance
 - "How do I debug connection issues?" - Troubleshooting assistance
+
+## Cross-Platform Compatibility
+
+This project is designed to work across Linux, macOS, and Windows. Key compatibility features include:
+
+- **Platform-specific scripts**: Equivalent `.sh` and `.bat` scripts for all operations
+- **Terminal visualization**: Uses `curses` on Linux/macOS and `windows-curses` on Windows
+- **Automatic mode selection**: Falls back to web UI mode on platforms where terminal visualization isn't supported
+- **Path handling**: Cross-platform path handling with OS-aware path separators
 
 ## Contributing
 
