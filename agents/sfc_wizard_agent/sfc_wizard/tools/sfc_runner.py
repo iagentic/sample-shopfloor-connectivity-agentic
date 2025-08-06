@@ -276,7 +276,7 @@ class SFCRunner:
 
             for root, dirs, files in os.walk(sfc_main_dir):
                 for file in files:
-                    if file == "sfc-main" or file == "sfc-main.exe":
+                    if file == "sfc-main" or file == "sfc-main.bat":
                         sfc_executable = os.path.join(root, file)
                         # Make executable on Unix-like systems
                         if os.name != "nt":  # not Windows
