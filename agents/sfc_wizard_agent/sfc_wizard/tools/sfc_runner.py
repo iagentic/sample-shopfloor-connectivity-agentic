@@ -360,7 +360,7 @@ class SFCRunner:
                     modules_dir, "sfc-main", "lib"
                 )  # Fallback to directory if no JARs found
 
-            print(f"Using classpath: {classpath}")
+            # print(f"Using classpath: {classpath}")
 
             # Construct the command properly as an array
             command = [
@@ -377,7 +377,7 @@ class SFCRunner:
             env = os.environ.copy()
             env["SFC_DEPLOYMENT_DIR"] = os.path.abspath(modules_dir)
             env["MODULES_DIR"] = os.path.abspath(modules_dir)
-            print(os.path.abspath(modules_dir))
+            # print(os.path.abspath(modules_dir))
 
             # Set up log file with rotation
             log_dir = os.path.join(test_dir, "logs")
