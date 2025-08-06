@@ -85,12 +85,12 @@ class SFCRunner:
             base_dir = os.getcwd()
 
             # Create the modules directory at the same level as runs
-            modules_dir = os.path.join(base_dir, ".sfc/modules")
+            modules_dir = os.path.join(base_dir, ".sfc", "modules")
             if not os.path.exists(modules_dir):
                 os.makedirs(modules_dir)
 
             # Create the runs directory
-            runs_dir = os.path.join(base_dir, ".sfc/runs")
+            runs_dir = os.path.join(base_dir, ".sfc", "runs")
             if not os.path.exists(runs_dir):
                 os.makedirs(runs_dir)
 
