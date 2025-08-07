@@ -414,6 +414,59 @@ class SFCRunner:
             # Add to active processes for cleanup when wizard exits
             active_processes.append(process)
 
+            # Create runner shell scripts for Linux and Windows that can execute the config directly
+            # Get relative paths from test_dir to modules_dir for the scripts
+            rel_modules_dir = os.path.relpath(os.path.abspath(modules_dir), test_dir)
+            config_rel_path = "config.json"  # Config is in the test directory, so just the filename
+            
+            # Create Linux shell script
+            linux_script_path = os.path.join(test_dir, "run_sfc.sh")
+            with open(linux_script_path, "w") as sh_file:
+                sh_file.write("#!/bin/bash\n")
+                sh_file.write("# Auto-generated SFC runner script\n\n")
+                # Set environment variables
+                sh_file.write(f"export SFC_DEPLOYMENT_DIR=\"$(pwd)/{rel_modules_dir}\"\n")
+                sh_file.write(f"export MODULES_DIR=\"$(pwd)/{rel_modules_dir}\"\n\n")
+                # Find JAR files
+                sh_file.write("# Build classpath dynamically\n")
+                sh_file.write("CLASSPATH=\"\"\n")
+                sh_file.write(f"for jar in $(pwd)/{rel_modules_dir}/sfc-main/lib/*.jar; do\n")
+                sh_file.write("  if [ -z \"$CLASSPATH\" ]; then\n")
+                sh_file.write("    CLASSPATH=\"$jar\"\n")
+                sh_file.write("  else\n")
+                sh_file.write("    CLASSPATH=\"$CLASSPATH:$jar\"\n")
+                sh_file.write("  fi\n")
+                sh_file.write("done\n\n")
+                # Execute Java command
+                sh_file.write(f"java -cp \"$CLASSPATH\" com.amazonaws.sfc.MainController -config {config_rel_path} -trace\n")
+            
+            # Make the shell script executable
+            os.chmod(linux_script_path, 0o755)
+            
+            # Create Windows batch script
+            windows_script_path = os.path.join(test_dir, "run_sfc.bat")
+            with open(windows_script_path, "w") as bat_file:
+                bat_file.write("@echo off\n")
+                bat_file.write("REM Auto-generated SFC runner script\n\n")
+                # Set environment variables
+                bat_file.write(f"set SFC_DEPLOYMENT_DIR=%~dp0{rel_modules_dir.replace('/', '\\')}\n")
+                bat_file.write(f"set MODULES_DIR=%~dp0{rel_modules_dir.replace('/', '\\')}\n\n")
+                # Build classpath dynamically
+                bat_file.write("REM Build classpath dynamically\n")
+                bat_file.write("set CLASSPATH=\n")
+                bat_file.write(f"for %%F in (\"%~dp0{rel_modules_dir.replace('/', '\\')}\\sfc-main\\lib\\*.jar\") do (\n")
+                bat_file.write("  if \"!CLASSPATH!\"==\"\" (\n")
+                bat_file.write("    set CLASSPATH=%%F\n")
+                bat_file.write("  ) else (\n")
+                bat_file.write("    set CLASSPATH=!CLASSPATH!;%%F\n")
+                bat_file.write("  )\n")
+                bat_file.write(")\n\n")
+                # Enable delayed expansion for the FOR loop
+                bat_file.write("setlocal EnableDelayedExpansion\n\n")
+                # Execute Java command
+                bat_file.write(f"java -cp \"!CLASSPATH!\" com.amazonaws.sfc.MainController -config {config_rel_path} -trace\n")
+                bat_file.write("\nendlocal\n")
+
             # Start log tail thread if it's not already running
             if log_tail_stop_event is None:
                 log_tail_stop_event = threading.Event()
@@ -440,8 +493,13 @@ Directory: {test_dir}
 SFC Version: {sfc_version}
 Configuration File: {config_filename}{modules_status}
 
+Runner scripts created:
+- Linux: {os.path.join(test_dir, "run_sfc.sh")}
+- Windows: {os.path.join(test_dir, "run_sfc.bat")}
+
 SFC is running with your configuration in a new process.
 You can check the logs in the test directory for status information.
+You can also run the configuration again later by executing the runner scripts directly.
 """
 
             return (
