@@ -12,7 +12,7 @@ if %ERRORLEVEL% NEQ 0 (
 REM Check if dependencies are installed
 if not exist "uv.lock" (
     echo Dependencies not found. Running init script...
-    call scripts\init.bat
+    call init.bat
 )
 
 REM Run the agent using uv

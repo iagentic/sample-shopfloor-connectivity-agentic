@@ -61,8 +61,11 @@ uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agen
    
    **Windows:**
    ```cmd
-   scripts\init.bat
+   init.bat
    ```
+   
+   > Note: Windows batch files (init.bat, run.bat, and run-ui.bat) are located in the main agent directory 
+   > for convenient double-click execution.
 
 3. **Run the agent:**
    
@@ -76,8 +79,6 @@ uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agen
    run.bat
    ```
    
-   > Note: Windows batch files (run.bat and run-ui.bat) are located in the main agent directory 
-   > for convenient double-click execution.
 
    Or run with Python directly:
    ```bash
@@ -190,11 +191,11 @@ agents/sfc_wizard_agent/
 ├── README.md                   # This file
 ├── pyproject.toml              # Project configuration and dependencies
 ├── uv.lock                     # Locked dependency versions
+├── init.bat                    # Initialize dependencies (Windows) - for double-click execution
 ├── run.bat                     # Run the agent (Windows) - for double-click execution
 ├── run-ui.bat                  # Run the web UI (Windows) - for double-click execution
 ├── scripts/                    # Utility scripts
 │   ├── init.sh                # Initialize dependencies (Linux/macOS)
-│   ├── init.bat               # Initialize dependencies (Windows)
 │   ├── run.sh                 # Run the agent (Linux/macOS)
 │   ├── run-ui.sh              # Run the web UI (Linux/macOS)
 │   ├── test.sh                # Run tests
@@ -242,7 +243,7 @@ Edit `pyproject.toml` and run:
 
 **Windows:**
 ```cmd
-scripts\init.bat
+init.bat
 ```
 
 ## Troubleshooting
@@ -250,7 +251,7 @@ scripts\init.bat
 ### Common Issues
 
 1. **UV not found**: Install UV using the installation command above
-2. **Dependencies missing**: Run `./scripts/init.sh` (Linux/macOS) or `scripts\init.bat` (Windows) to install dependencies
+2. **Dependencies missing**: Run `./scripts/init.sh` (Linux/macOS) or `init.bat` (Windows) to install dependencies
 3. **AWS credentials**: Ensure AWS credentials are configured for deployment features
 4. **MCP server errors**: Check that the SFC Spec Server is properly configured
 5. **Windows-specific issues**: 
