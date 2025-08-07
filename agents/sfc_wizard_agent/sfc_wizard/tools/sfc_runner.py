@@ -451,12 +451,12 @@ class SFCRunner:
                 # Enable delayed expansion at the beginning
                 bat_file.write("setlocal EnableDelayedExpansion\n\n")
                 # Set environment variables
-                bat_file.write(f"set SFC_DEPLOYMENT_DIR=%~dp0{rel_modules_dir.replace('/', '\\')}\n")
-                bat_file.write(f"set MODULES_DIR=%~dp0{rel_modules_dir.replace('/', '\\')}\n\n")
+                bat_file.write(f"set SFC_DEPLOYMENT_DIR={rel_modules_dir.replace('/', '\\')}\n")
+                bat_file.write(f"set MODULES_DIR={rel_modules_dir.replace('/', '\\')}\n\n")
                 # Build classpath dynamically
                 bat_file.write("REM Build classpath dynamically\n")
                 bat_file.write("set CLASSPATH=\n")
-                bat_file.write(f"for %%F in (\"%~dp0{rel_modules_dir.replace('/', '\\')}\\sfc-main\\lib\\*.jar\") do (\n")
+                bat_file.write(f"for %%F in (\"{rel_modules_dir.replace('/', '\\')}\\sfc-main\\lib\\*.jar\") do (\n")
                 bat_file.write("  if \"!CLASSPATH!\"==\"\" (\n")
                 bat_file.write("    set CLASSPATH=%%F\n")
                 bat_file.write("  ) else (\n")
