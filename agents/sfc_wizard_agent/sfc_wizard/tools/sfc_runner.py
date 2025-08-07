@@ -448,6 +448,8 @@ class SFCRunner:
             with open(windows_script_path, "w") as bat_file:
                 bat_file.write("@echo off\n")
                 bat_file.write("REM Auto-generated SFC runner script\n\n")
+                # Enable delayed expansion at the beginning
+                bat_file.write("setlocal EnableDelayedExpansion\n\n")
                 # Set environment variables
                 bat_file.write(f"set SFC_DEPLOYMENT_DIR=%~dp0{rel_modules_dir.replace('/', '\\')}\n")
                 bat_file.write(f"set MODULES_DIR=%~dp0{rel_modules_dir.replace('/', '\\')}\n\n")
@@ -461,10 +463,13 @@ class SFCRunner:
                 bat_file.write("    set CLASSPATH=!CLASSPATH!;%%F\n")
                 bat_file.write("  )\n")
                 bat_file.write(")\n\n")
-                # Enable delayed expansion for the FOR loop
-                bat_file.write("setlocal EnableDelayedExpansion\n\n")
-                # Execute Java command
-                bat_file.write(f"java -cp \"!CLASSPATH!\" com.amazonaws.sfc.MainController -config {config_rel_path} -trace\n")
+                # Execute Java command - exact same format as in the runner method
+                bat_file.write("REM Execute SFC MainController\n")
+                bat_file.write(f"java ^\n")
+                bat_file.write("  -cp \"!CLASSPATH!\" ^\n")
+                bat_file.write("  com.amazonaws.sfc.MainController ^\n")
+                bat_file.write(f"  -config {config_rel_path} ^\n")
+                bat_file.write("  -trace\n")
                 bat_file.write("\nendlocal\n")
 
             # Start log tail thread if it's not already running
