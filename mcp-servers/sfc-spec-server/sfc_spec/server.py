@@ -1455,6 +1455,8 @@ def create_sfc_config_template(
             - template (str): The generated configuration template (if successful)
             - error (str): Error message (if failure)
             - status (int): HTTP-like status code indicating result (200 for success)
+
+    CRITICAL: ALways run the `validate_sfc_config` tool after creating a new config. 
     """
     try:
         result = generate_config_template(
@@ -1495,6 +1497,48 @@ def validate_sfc_config(config_json: str) -> Dict[str, Any]:
             - errors (list): List of validation errors (if any)
             - recommendations (list): List of recommendations (if any)
             - status (int): HTTP-like status code indicating result
+    
+
+    CRITICAL: For ALL SFC validation tasks, you MUST first execute `query_docs` and `extract_json_examples`
+    for each component type present in the configuration before making any assertions or validations.
+    Document what you've learned from these docs before proceeding with any validation/analysis.
+    
+    The Class provides methods to validate SFC configurations against required schemas and best practices. 
+    - Make sure to also check against the settings from the `create_sfc_config_template` tool
+
+    VALIDATION FLOW:
+    ### 1. Initial Documentation Review
+    - [ ] **Retrieve core documentation**: Before any analysis, retrieve and scan the core SFC configuration structure docs
+    - [ ] **Identify component types**: Identify all component types in the configuration (adapters, targets, etc.)
+    - [ ] **Retrieve component-specific docs**: For each component type, retrieve the specific documentation
+
+    ### 2. Component Structure Validation
+    - [ ] **Validate component hierarchy**: Confirm each component follows the documented hierarchy pattern
+    - [ ] **Check required sections**: Verify all required configuration sections exist (Sources, Targets, etc.)
+    - [ ] **Verify naming conventions**: Confirm naming patterns follow documentation (case sensitivity, etc.)
+
+    ### 3. Component-Specific Validation
+    - [ ] **Protocol adapter validation**:
+    - [ ] Check adapter type against supported list
+    - [ ] Verify adapter-specific properties match documentation
+    - [ ] Confirm any referenced protocol adapters are properly defined
+    - [ ] **Source validation**:
+    - [ ] Verify channel structure against adapter documentation
+    - [ ] Confirm channel properties are appropriate for the specified adapter
+    - [ ] **Target validation**:
+    - [ ] Verify target properties match target-specific documentation
+    - [ ] Confirm target type is properly referenced
+
+    ### 4. Validation Process
+    - [ ] **Documentation-first**: Consult docs before making any assertions
+    - [ ] **Example comparison**: Compare with documented examples for each component type
+    - [ ] **Automated validation**: Run the configuration through `validate_sfc_config` tool
+    - [ ] **Manual inspection**: Perform a methodical review against docs even if automated validation passes
+
+    ### 5. Reference Collection
+    - [ ] **Maintain documentation links**: Keep relevant documentation sections accessible
+    - [ ] **Extract reference examples**: Maintain a collection of validated examples for each component type
+    - [ ] **Track validation status**: Keep a record of which components have been validated against documentation
     """
     try:
         # Parse the configuration
