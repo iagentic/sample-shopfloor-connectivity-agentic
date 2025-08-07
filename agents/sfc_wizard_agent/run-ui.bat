@@ -18,25 +18,8 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-echo Installing dependencies...
-uv sync
-if %ERRORLEVEL% NEQ 0 (
-    echo Failed to install dependencies
-    exit /b 1
-) else (
-    echo Dependencies installed successfully
-)
-
-REM Check for .env file and create from template if it doesn't exist
-if not exist ".env" (
-    echo No .env file found. Creating one from template...
-    if exist ".env.template" (
-        copy .env.template .env
-        echo Created .env file from template
-    ) else (
-        echo No .env.template found. Using default configuration.
-    )
-)
+REM Check if dependencies are installed
+call init.bat
 
 echo.
 echo Starting SFC Wizard Chat UI...

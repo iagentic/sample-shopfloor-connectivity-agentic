@@ -10,10 +10,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 REM Check if dependencies are installed
-if not exist "uv.lock" (
-    echo Dependencies not found. Running init script...
-    call init.bat
-)
+call init.bat
 
 REM Run the agent using uv
 uv run python -m sfc_wizard.agent
