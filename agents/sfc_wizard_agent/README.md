@@ -73,8 +73,11 @@ uvx --from git+https://github.com/aws-samples/sample-shopfloor-connectivity-agen
    
    **Windows:**
    ```cmd
-   scripts\run.bat
+   run.bat
    ```
+   
+   > Note: Windows batch files (run.bat and run-ui.bat) are located in the main agent directory 
+   > for convenient double-click execution.
 
    Or run with Python directly:
    ```bash
@@ -187,13 +190,13 @@ agents/sfc_wizard_agent/
 ├── README.md                   # This file
 ├── pyproject.toml              # Project configuration and dependencies
 ├── uv.lock                     # Locked dependency versions
+├── run.bat                     # Run the agent (Windows) - for double-click execution
+├── run-ui.bat                  # Run the web UI (Windows) - for double-click execution
 ├── scripts/                    # Utility scripts
 │   ├── init.sh                # Initialize dependencies (Linux/macOS)
 │   ├── init.bat               # Initialize dependencies (Windows)
 │   ├── run.sh                 # Run the agent (Linux/macOS)
-│   ├── run.bat                # Run the agent (Windows)
 │   ├── run-ui.sh              # Run the web UI (Linux/macOS)
-│   ├── run-ui.bat             # Run the web UI (Windows)
 │   ├── test.sh                # Run tests
 │   └── lint.sh                # Code linting
 ├── sfc_wizard/                 # Main agent package
