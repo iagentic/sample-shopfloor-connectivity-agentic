@@ -212,10 +212,10 @@ class ChatUI:
             try:
                 # Use cross-platform file handling with pathlib
                 env_path = Path(env_file_path)
-                
+
                 # Read content safely with universal newlines mode
-                content = env_path.read_text(encoding='utf-8')
-                
+                content = env_path.read_text(encoding="utf-8")
+
                 # Look for existing FLASK_SECRET_KEY in .env file
                 for line in content.splitlines():
                     if line.strip().startswith("FLASK_SECRET_KEY="):
@@ -223,9 +223,9 @@ class ChatUI:
 
                 # If FLASK_SECRET_KEY not found in .env, generate and append it
                 new_secret_key = secrets.token_urlsafe(32)
-                
+
                 # Append to file with platform-appropriate line endings
-                with open(env_file_path, "a", encoding='utf-8', newline='') as f:
+                with open(env_file_path, "a", encoding="utf-8", newline="") as f:
                     f.write("\n# Flask Secret Key (auto-generated)\n")
                     f.write(f"FLASK_SECRET_KEY={new_secret_key}\n")
 
@@ -236,6 +236,7 @@ class ChatUI:
                 print(f"⚠️ Error reading/writing .env file: {e}")
                 # Print more detailed error information for debugging
                 import traceback
+
                 traceback.print_exc()
 
         # If all else fails, generate a temporary secret key (not persistent)
@@ -796,16 +797,16 @@ What would you like to do today?"""
         try:
             # Set up common signals available on all platforms
             signal.signal(signal.SIGINT, self._signal_handler)
-            
+
             # Set up SIGTERM which might not be available on Windows
-            if hasattr(signal, 'SIGTERM'):  # Check if SIGTERM exists
+            if hasattr(signal, "SIGTERM"):  # Check if SIGTERM exists
                 signal.signal(signal.SIGTERM, self._signal_handler)
-                
+
             # On Windows, also try to handle CTRL_C_EVENT and CTRL_BREAK_EVENT if available
             if platform.system() == "Windows":
-                if hasattr(signal, 'CTRL_C_EVENT'):
+                if hasattr(signal, "CTRL_C_EVENT"):
                     signal.signal(signal.CTRL_C_EVENT, self._signal_handler)
-                if hasattr(signal, 'CTRL_BREAK_EVENT'):
+                if hasattr(signal, "CTRL_BREAK_EVENT"):
                     signal.signal(signal.CTRL_BREAK_EVENT, self._signal_handler)
         except Exception as e:
             print(f"⚠️ Warning: Could not set up some signal handlers: {e}")
@@ -842,7 +843,7 @@ def main():
                 print("✅ Set Windows-compatible event loop policy")
             except Exception as e:
                 print(f"⚠️ Could not set Windows event loop policy: {e}")
-        
+
         # Load environment variables from .env file
         env_path = Path(__file__).parent.parent / ".env"
         if env_path.exists():

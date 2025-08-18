@@ -8,11 +8,9 @@ Specialized assistant for debugging, creating, and testing SFC configurations.
 
 import sys
 import os
-import json
 import threading
 import queue
 import inspect
-import html
 import asyncio
 import signal
 from dotenv import load_dotenv
