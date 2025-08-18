@@ -120,6 +120,12 @@ class ChatUI:
             self.agent_ready = True
             print("✅ SFC Wizard Agent initialized with MCP tools")
 
+            # Display AWS credentials validation status in UI logs
+            if self.sfc_agent.aws_credentials_valid:
+                print("✅ AWS Bedrock credentials validated successfully")
+            else:
+                print(self.sfc_agent.aws_credentials_error)
+
     def _cleanup_async_tasks(self):
         """Clean up any pending asyncio tasks to prevent the 'Task was destroyed but it is pending' error."""
         try:
@@ -755,11 +761,21 @@ class ChatUI:
 
     def _get_welcome_message(self) -> str:
         """Get the welcome message for new conversations."""
-        return """🏭 **AWS SHOP FLOOR CONNECTIVITY (SFC) WIZARD**
+        # Get AWS credentials status from agent if available
+        aws_status_message = ""
+        if hasattr(self, "sfc_agent") and self.sfc_agent:
+            if self.sfc_agent.aws_credentials_valid:
+                aws_status_message = (
+                    "✅ **AWS Bedrock credentials validated successfully**\n\n"
+                )
+            else:
+                aws_status_message = f"❌ **AWS Credentials Issue:**\n{self.sfc_agent.aws_credentials_error}\n\n"
+
+        return f"""🏭 **AWS SHOP FLOOR CONNECTIVITY (SFC) WIZARD**
 
 Specialized assistant for industrial data connectivity to AWS
 
-💾 **Session Persistence**: Your conversation is automatically saved and will persist for 5 minutes even if you refresh the page or close the browser tab.
+{aws_status_message}💾 **Session Persistence**: Your conversation is automatically saved and will persist for 5 minutes even if you refresh the page or close the browser tab.
 
 ⚡ **NEW: Streaming responses with interrupt capability!** Use the Stop button during any response to interrupt and continue with next query.
 
